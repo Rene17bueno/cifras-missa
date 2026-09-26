@@ -835,7 +835,18 @@
     if (!candidatos.length) {
       throw new Error("o CifraClub não deixa buscar automaticamente e a música não foi encontrada no Músicas para Missa; use o favorito ou cole a cifra");
     }
-    aplicarAlternativa(m, await chamarBusca({ url: candidatos[0].url }), candidatos.map((c) => c.url));
+    // Algumas músicas do Músicas para Missa só têm a letra. Tenta as opções quase tão boas quanto a melhor;
+    // as de pontuação bem menor costumam ser outra música (ex.: mesmo nome, outro artista).
+    const parecidas = candidatos.filter((c) => c.pontos >= candidatos[0].pontos - 10);
+    for (const c of parecidas) {
+      try {
+        aplicarAlternativa(m, await chamarBusca({ url: c.url }), candidatos.map((x) => x.url));
+        return;
+      } catch (erro) {
+        if (!/não foi encontrada/.test(erro.message)) throw erro;
+      }
+    }
+    throw new Error("a música foi encontrada no Músicas para Missa, mas lá está só com a letra (sem cifra); use o favorito ou cole a cifra");
   }
 
   async function buscarAutomatico() {
