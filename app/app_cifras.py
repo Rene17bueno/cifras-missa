@@ -171,6 +171,15 @@ def aplicar_tom(item, semitons):
     return {**item, "Cifra": transpor(item["Cifra"], semitons), "Tom": rotulo}
 
 
+def mudar_tom(musica, semitons):
+    """Callback: roda antes de a página ser redesenhada, sem interromper o resto da tela"""
+    musica["transpor"] = semitons % 12
+
+
+def escolher_tom(musica, raiz, chave):
+    mudar_tom(musica, st.session_state[chave] - raiz)
+
+
 def descricao_tom(musica):
     """'Tom: D' ou 'Tom: D (original C)' para mostrar na lista"""
     resultado = musica["resultado"]
@@ -439,7 +448,12 @@ for musica in musicas:
     # A chave dos campos muda quando a cifra guardada muda (extração, salvar, voltar ao original),
     # para os campos mostrarem o conteúdo novo em vez do texto antigo que ficou no navegador
     versao = zlib.crc32(json.dumps([resultado.get("Música"), resultado.get("Artista"), cifra_atual]).encode())
-    with st.expander(f"{icone(musica)} {musica['posicao']} — {titulo}{editada}"):
+    # O título da seção muda ao salvar (ex.: "✏️ editada"), e o Streamlit a recria fechada;
+    # por isso a última música salva reabre aberta
+    with st.expander(
+        f"{icone(musica)} {musica['posicao']} — {titulo}{editada}",
+        expanded=st.session_state.get("manter_aberta") == mid,
+    ):
         if musica["url"]:
             st.markdown(f"[Abrir no site]({musica['url']})")
         c1, c2 = st.columns(2)
@@ -473,12 +487,14 @@ for musica in musicas:
                     "Erro": "",
                     "Editado": True,
                 }
+                st.session_state.manter_aberta = mid
                 st.toast("Alterações salvas")
                 st.rerun()
         original = resultado.get("Original")
         if original and resultado.get("Editado"):
             if b2.button("↩️ Voltar ao original", key=f"orig_{mid}"):
                 musica["resultado"] = {**resultado, **original, "Editado": False}
+                st.session_state.manter_aberta = mid
                 st.rerun()
         if mudou:
             b3.caption("⚠️ Alterações não salvas")
@@ -489,24 +505,23 @@ for musica in musicas:
         if tom:
             raiz, menor = tom
             t1, t2, t3, t4 = st.columns([1.4, 0.6, 0.6, 1.4], vertical_alignment="bottom")
-            destino = t1.selectbox(
+            chave_tom = f"tom_{mid}_{semitons}"
+            t1.selectbox(
                 f"Tom (original: {rotulo_tom(raiz, menor)})",
                 range(12),
                 index=(raiz + semitons) % 12,
                 format_func=lambda i: rotulo_tom(i, menor),
-                key=f"tom_{mid}_{semitons}",
+                key=chave_tom,
+                on_change=escolher_tom,
+                args=(musica, raiz, chave_tom),
                 help="Tom estimado pelo primeiro acorde. Os acordes mudam na prévia e nos arquivos baixados.",
             )
-            novo = (destino - raiz) % 12
-            if t2.button("➖ ½ tom", key=f"desce_{mid}", help="Descer meio tom"):
-                novo = (semitons - 1) % 12
-            if t3.button("➕ ½ tom", key=f"sobe_{mid}", help="Subir meio tom"):
-                novo = (semitons + 1) % 12
-            if semitons and t4.button("↩️ Tom original", key=f"tomorig_{mid}"):
-                novo = 0
-            if novo != semitons:
-                musica["transpor"] = novo
-                st.rerun()
+            t2.button("➖ ½ tom", key=f"desce_{mid}", help="Descer meio tom",
+                      on_click=mudar_tom, args=(musica, semitons - 1))
+            t3.button("➕ ½ tom", key=f"sobe_{mid}", help="Subir meio tom",
+                      on_click=mudar_tom, args=(musica, semitons + 1))
+            if semitons:
+                t4.button("↩️ Tom original", key=f"tomorig_{mid}", on_click=mudar_tom, args=(musica, 0))
             if semitons:
                 st.caption(f"🎼 Tocando em **{rotulo_tom(raiz + semitons, menor)}**. "
                            "O editor continua mostrando o tom original; a prévia e os arquivos saem no tom novo.")
@@ -523,7 +538,12 @@ for musica in musicas:
             help="Padrão segue a opção geral da seção 5. Baixar.",
         )
         musica["colunas"] = escolha
-        if l2.toggle("👁️ Prévia desta música", key=f"prev_{mid}") and nova_cifra.strip():
+        # Guarda quais prévias estão ligadas fora do widget: o Streamlit esquece o estado
+        # de um widget quando a página é recarregada antes de ele ser desenhado (ex.: ao salvar)
+        previas = st.session_state.setdefault("previas", set())
+        previa_ligada = l2.toggle("👁️ Prévia desta música", value=mid in previas, key=f"prev_{mid}")
+        (previas.add if previa_ligada else previas.discard)(mid)
+        if previa_ligada and nova_cifra.strip():
             # Mostra o texto que está na caixa, mesmo antes de salvar
             item = aplicar_tom({
                 "Posição": musica["posicao"], "URL": musica["url"], "Música": novo_titulo.strip(),
