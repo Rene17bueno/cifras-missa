@@ -3,3 +3,4 @@ openpyxl
 streamlit
 python-docx
 fpdf2
+pymupdf

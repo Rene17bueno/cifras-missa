@@ -5,6 +5,7 @@ Extrator de Cifras - extrai músicas de missa do CifraClub e do MusicasParaMissa
 Uso:
     python cifras_missa.py                       # gera cifras_missa.xlsx
     python cifras_missa.py --formatos docx pdf   # escolhe os formatos
+    python cifras_missa.py --formatos pdf --colunas 2
 """
 
 import argparse
@@ -204,6 +205,7 @@ async def main():
     """Fluxo principal"""
     parser = argparse.ArgumentParser(description="Extrai cifras de missa e gera arquivos")
     parser.add_argument("--formatos", nargs="+", choices=list(EXPORTADORES), default=["xlsx"])
+    parser.add_argument("--colunas", type=int, choices=[1, 2], default=1, help="colunas no Word, PDF e TXT")
     args = parser.parse_args()
 
     print("=" * 80)
@@ -216,7 +218,7 @@ async def main():
     print("\n[2/2] Gerando arquivos...")
     for formato in args.formatos:
         arquivo = Path(f"cifras_missa.{formato}")
-        arquivo.write_bytes(EXPORTADORES[formato](dados))
+        arquivo.write_bytes(EXPORTADORES[formato](dados, colunas=args.colunas))
         print(f"Arquivo gerado: {arquivo}")
 
     ok = sum(item["Status"] == "OK" for item in dados)

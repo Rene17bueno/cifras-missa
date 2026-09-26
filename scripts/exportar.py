@@ -1,15 +1,31 @@
 """
-Exporta as cifras extraídas para Excel, Word, PDF e texto.
+Exporta as cifras extraídas para Word, PDF, texto e Excel.
 Cada função recebe a lista de músicas (dicts) e devolve o arquivo em bytes.
+Opções: colunas (1 ou 2) e tamanho da fonte (None = automático).
 """
 
 import io
+from itertools import zip_longest
 
 from docx import Document
-from docx.shared import Pt
+from docx.enum.section import WD_SECTION
+from docx.enum.text import WD_BREAK, WD_LINE_SPACING
+from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Mm, Pt, RGBColor
 from fpdf import FPDF
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
+
+from layout import ENTRELINHA, PT_MM, montar, paginar, preparar
+
+# Página A4 (mm)
+PAGINA_L, PAGINA_A = 210, 297
+MARGEM_LADO, MARGEM_TOPO = 15, 12
+ESPACO_COLUNAS = 8
+CABECALHO = 20  # altura do título da música
+COR_ACORDE = (150, 30, 30)
+LARGURA_TXT = 48  # caracteres por coluna no .txt com 2 colunas
 
 
 def _nome(item):
@@ -23,68 +39,145 @@ def _cifra(item):
     return item["Cifra"] if item["Status"] == "OK" else f"Não foi possível extrair: {item['Erro']}\n{item['URL']}"
 
 
-def exportar_txt(dados):
+def _area_colunas(colunas, folga=0):
+    """Largura de cada coluna e altura disponível para a cifra (mm)"""
+    largura = (PAGINA_L - 2 * MARGEM_LADO - ESPACO_COLUNAS * (colunas - 1)) / colunas
+    altura = PAGINA_A - 2 * MARGEM_TOPO - CABECALHO - folga
+    return largura, altura
+
+
+# ------------------------------------------------------------------- TXT
+def exportar_txt(dados, colunas=1, tamanho=None):
     blocos = ["CIFRAS DA MISSA", ""]
     for item in dados:
-        blocos += ["=" * 60, item["Posição"].upper(), _nome(item), "=" * 60, "", _cifra(item), "", ""]
+        blocos += ["=" * 60, item["Posição"].upper(), _nome(item), "=" * 60, ""]
+        if colunas == 1:
+            blocos.append(_cifra(item))
+        else:
+            unidades, _ = preparar(_cifra(item), LARGURA_TXT)
+            esquerda, *direita = paginar(unidades, 10**6, 2)[0]
+            direita = direita[0] if direita else []
+            for a, b in zip_longest(esquerda, direita, fillvalue=("vazia", "")):
+                blocos.append(f"{a[1]:<{LARGURA_TXT}}  |  {b[1]}".rstrip())
+        blocos += ["", ""]
     # utf-8-sig para o Bloco de Notas reconhecer os acentos
     return "\n".join(blocos).encode("utf-8-sig")
 
 
-def exportar_docx(dados):
+# ------------------------------------------------------------------- Word
+def _definir_colunas(secao, n):
+    cols = secao._sectPr.find(qn("w:cols"))
+    if cols is None:
+        cols = OxmlElement("w:cols")
+        secao._sectPr.append(cols)
+    cols.set(qn("w:num"), str(n))
+    cols.set(qn("w:space"), str(int(ESPACO_COLUNAS * 56.7)))  # mm -> twips
+    cols.set(qn("w:sep"), "1" if n > 1 else "0")               # linha entre as colunas
+
+
+def _configurar_pagina(secao):
+    secao.page_width, secao.page_height = Mm(PAGINA_L), Mm(PAGINA_A)
+    secao.left_margin = secao.right_margin = Mm(MARGEM_LADO)
+    secao.top_margin = secao.bottom_margin = Mm(MARGEM_TOPO)
+
+
+def _paragrafo(doc, texto, tamanho, negrito=False, cor=None, fonte="Courier New"):
+    p = doc.add_paragraph()
+    formato = p.paragraph_format
+    formato.space_before = formato.space_after = Pt(0)
+    formato.line_spacing_rule = WD_LINE_SPACING.EXACTLY
+    formato.line_spacing = Pt(tamanho * ENTRELINHA)
+    run = p.add_run(texto)
+    run.font.name = fonte
+    run.font.size = Pt(tamanho)
+    run.bold = negrito
+    if cor:
+        run.font.color.rgb = RGBColor(*cor)
+    return p
+
+
+def exportar_docx(dados, colunas=1, tamanho=None):
     doc = Document()
-    doc.add_heading("Cifras da Missa", 0)
+    _configurar_pagina(doc.sections[0])
+    # Folga de 10 mm: o Word calcula alturas um pouco diferente do PDF
+    largura, altura = _area_colunas(colunas, folga=10)
 
     for i, item in enumerate(dados):
-        if i:
-            doc.add_page_break()
-        doc.add_heading(item["Posição"], level=1)
-        doc.add_paragraph().add_run(_nome(item)).bold = True
+        secao = doc.sections[-1] if i == 0 else doc.add_section(WD_SECTION.NEW_PAGE)
+        _definir_colunas(secao, 1)
+        _paragrafo(doc, item["Posição"], 16, negrito=True, fonte="Arial").paragraph_format.space_after = Pt(2)
+        _paragrafo(doc, _nome(item), 12, fonte="Arial").paragraph_format.space_after = Pt(10)
 
-        paragrafo = doc.add_paragraph()
-        paragrafo.paragraph_format.space_after = Pt(0)
-        run = paragrafo.add_run(_cifra(item))
-        # Fonte monoespaçada mantém os acordes alinhados com a letra
-        run.font.name = "Courier New"
-        run.font.size = Pt(10)
+        # Conteúdo numa seção contínua com as colunas; quebras de coluna calculadas pelo layout
+        _definir_colunas(doc.add_section(WD_SECTION.CONTINUOUS), colunas)
+        t, paginas = montar(_cifra(item), colunas, largura, altura, tamanho)
+        todas = [coluna for pagina in paginas for coluna in pagina]
+        for n, coluna in enumerate(todas):
+            ultimo = None
+            for tipo, texto in coluna:
+                negrito = tipo in ("acorde", "marcador")
+                ultimo = _paragrafo(doc, texto, t, negrito, COR_ACORDE if tipo == "acorde" else None)
+            if n < len(todas) - 1:
+                if ultimo is None:
+                    ultimo = _paragrafo(doc, "", t)
+                ultimo.add_run().add_break(WD_BREAK.COLUMN if colunas > 1 else WD_BREAK.PAGE)
 
     buffer = io.BytesIO()
     doc.save(buffer)
     return buffer.getvalue()
 
 
+# ------------------------------------------------------------------- PDF
 def _latin1(texto):
     """As fontes padrão do PDF só aceitam latin-1 (que cobre os acentos do português)"""
-    trocas = {"—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'", "…": "...", "\t": "    "}
+    trocas = {"—": "-", "–": "-", "“": '"', "”": '"', "‘": "'", "’": "'", "…": "..."}
     for antigo, novo in trocas.items():
         texto = texto.replace(antigo, novo)
     return texto.encode("latin-1", "replace").decode("latin-1")
 
 
-def exportar_pdf(dados):
+def exportar_pdf(dados, colunas=1, tamanho=None):
     pdf = FPDF(format="A4")
-    pdf.set_auto_page_break(True, margin=15)
-    largura_util = pdf.w - pdf.l_margin - pdf.r_margin
+    pdf.set_auto_page_break(False)
+    largura, altura = _area_colunas(colunas)
+    topo = MARGEM_TOPO + CABECALHO
 
     for item in dados:
-        pdf.add_page()
-        pdf.set_font("Helvetica", "B", 16)
-        pdf.cell(0, 9, _latin1(item["Posição"]), new_x="LMARGIN", new_y="NEXT")
-        pdf.set_font("Helvetica", "", 12)
-        pdf.cell(0, 7, _latin1(_nome(item)), new_x="LMARGIN", new_y="NEXT")
-        pdf.ln(4)
+        t, paginas = montar(_cifra(item), colunas, largura, altura, tamanho)
+        altura_linha = t * ENTRELINHA * PT_MM
 
-        cifra = _latin1(_cifra(item))
-        # Diminui a fonte para a linha mais longa caber sem quebrar (Courier: 0,6 em por caractere)
-        maior_linha = max((len(linha) for linha in cifra.splitlines()), default=1)
-        tamanho = max(7, min(10, largura_util / (0.6 * 0.3528 * maior_linha)))
-        pdf.set_font("Courier", "", tamanho)
-        pdf.multi_cell(0, tamanho * 0.45, cifra)
+        for n, pagina in enumerate(paginas):
+            pdf.add_page()
+            # Cabeçalho
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_xy(MARGEM_LADO, MARGEM_TOPO)
+            pdf.set_font("Helvetica", "B", 16)
+            continuacao = f"  (continuação {n + 1}/{len(paginas)})" if n else ""
+            pdf.cell(0, 8, _latin1(item["Posição"] + continuacao), new_x="LMARGIN", new_y="NEXT")
+            pdf.set_x(MARGEM_LADO)
+            pdf.set_font("Helvetica", "", 12)
+            pdf.cell(0, 7, _latin1(_nome(item)))
+            pdf.set_draw_color(180, 180, 180)
+            pdf.line(MARGEM_LADO, topo - 3, PAGINA_L - MARGEM_LADO, topo - 3)
+
+            # Colunas
+            for c, coluna in enumerate(pagina):
+                x = MARGEM_LADO + c * (largura + ESPACO_COLUNAS)
+                if c:
+                    divisa = x - ESPACO_COLUNAS / 2
+                    pdf.line(divisa, topo, divisa, topo + len(coluna) * altura_linha)
+                for k, (tipo, texto) in enumerate(coluna):
+                    if tipo == "vazia":
+                        continue
+                    pdf.set_font("Courier", "B" if tipo in ("acorde", "marcador") else "", t)
+                    pdf.set_text_color(*(COR_ACORDE if tipo == "acorde" else (0, 0, 0)))
+                    pdf.text(x, topo + (k + 0.8) * altura_linha, _latin1(texto))
 
     return bytes(pdf.output())
 
 
-def exportar_xlsx(dados):
+# ------------------------------------------------------------------- Excel
+def exportar_xlsx(dados, colunas=1, tamanho=None):
     wb = Workbook()
     ws = wb.active
     ws.title = "Cifras"
