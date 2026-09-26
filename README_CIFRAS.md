@@ -1,63 +1,60 @@
-# Extrator de Cifras - Missa
+# Cifras da Missa
 
-Script Python para extrair cifras musicais do CifraClub e MusicasParaMissa e gerar arquivo Excel formatado.
+Extrai cifras do CifraClub e do Músicas para Missa e gera arquivos em Word, PDF, texto ou Excel.
 
 ## Instalação
 
-### 1. Instalar dependências
 ```bash
-pip install playwright pandas openpyxl beautifulsoup4
-```
-
-### 2. Instalar navegador Playwright
-```bash
+pip install -r requirements.txt
 playwright install chromium
 ```
 
+Precisa do Microsoft Edge ou do Google Chrome instalado (o CifraClub bloqueia o navegador do Playwright).
+
 ## Uso
 
+### App (recomendado)
+
 ```bash
-python cifras_missa.py
+python -m streamlit run app/app_cifras.py
 ```
 
-Vai gerar arquivo `cifras_missa.xlsx` na mesma pasta.
+Abre em http://localhost:8501. Na página:
 
-## O que o script faz
+1. **Adicionar músicas**: escolha a parte da missa e cole o link. Na aba "Vários links de uma vez", cole um por linha no formato `Parte da missa | link`.
+2. **Organizar**: use ⬆️ ⬇️ ❌ em cada música ou **Organizar na ordem da missa**.
+3. **Extrair**: **Extrair todas** ou **Extrair só as que faltam** (para tentar de novo as que deram erro).
+4. **Baixar**: Word (.docx), PDF, Texto (.txt) ou Excel (.xlsx).
 
-1. **Acessa cada URL** usando Playwright (simula browser real, evita bloqueios)
-2. **Extrai título e cifra** com BeautifulSoup
-3. **Monta DataFrame** com os dados
-4. **Salva Excel formatado** com:
-   - Cabeçalho azul com fonte branca
-   - Colunas redimensionadas
-   - Wrap text nas cifras
-   - Linhas com borda
+### Linha de comando
 
-## Customização
-
-Editar a seção `MUSICAS` no script para adicionar/remover urls:
-
-```python
-MUSICAS = [
-    {
-        "posicao": "Entrada",
-        "url": "https://...",
-        "site": "cifraclub"  # ou "musicasparamissa"
-    },
-    ...
-]
+```bash
+python scripts/cifras_missa.py                              # gera cifras_missa.xlsx
+python scripts/cifras_missa.py --formatos docx pdf txt xlsx # escolhe os formatos
 ```
 
-## Troubleshooting
+A lista de músicas da linha de comando fica em `MUSICAS`, no começo de `scripts/cifras_missa.py`.
 
-**"ModuleNotFoundError: No module named 'playwright'"**
-→ Rodar: `pip install playwright`
+## Estrutura
 
-**"Chromium not found"**
-→ Rodar: `playwright install chromium`
+```
+app/app_cifras.py        interface Streamlit
+scripts/cifras_missa.py  extração das cifras (Playwright)
+scripts/exportar.py      geração de Word, PDF, TXT e Excel
+```
 
-**Timeouts**
-→ Aumentar valores de timeout no código (ms)
+## Sites suportados
 
-**Cifra em branco**
-→ Site mudou estrutura HTML; editar seletores CSS no código
+- **CifraClub** (cifraclub.com.br)
+- **Músicas para Missa** (musicasparamissa.com.br)
+- Outros sites: tenta pegar o primeiro bloco `<pre>` da página
+
+## Problemas comuns
+
+**Erro 502**: o CifraClub às vezes falha; o programa tenta 3 vezes. Se continuar, abra o link no navegador. Se também não abrir, o link está errado ou a música foi removida.
+
+**Erro 403 / "bloqueou o acesso"**: confira se o Edge ou o Chrome está instalado.
+
+**"O site demorou demais"**: a página não carregou ou mudou de estrutura. Tente de novo; se persistir, os seletores em `scripts/cifras_missa.py` precisam ser atualizados.
+
+**Aparece um ícone do Edge na barra de tarefas durante a extração**: é normal. A janela fica fora da tela e fecha no final.

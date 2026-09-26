@@ -1,5 +1,5 @@
 playwright
-pandas
 openpyxl
-beautifulsoup4
 streamlit
+python-docx
+fpdf2
