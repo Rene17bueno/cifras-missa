@@ -50,7 +50,8 @@ DOWNLOADS = [
     ("txt", "📝 Texto (.txt)", "text/plain"),
     ("xlsx", "📊 Excel (.xlsx)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
 ]
-PREFIXOS_WIDGETS = ("pos_", "mus_", "art_", "cif_")
+PREFIXOS_WIDGETS = ("pos_", "mus_", "art_", "cif_", "col_", "prev_")
+OPCOES_COLUNAS = {None: "Padrão", 1: "1 coluna", 2: "2 colunas"}
 
 
 # ---------------------------------------------------------------- Repertórios (arquivos .json)
@@ -361,6 +362,22 @@ if alvo:
     barra.empty()
     st.rerun()
 
+@st.cache_data(show_spinner=False, max_entries=40)
+def gerar(formato, dados_json, colunas, tamanho):
+    return EXPORTADORES[formato](json.loads(dados_json), colunas=colunas, tamanho=tamanho)
+
+
+@st.cache_data(show_spinner=False, max_entries=40)
+def imagens_pdf(pdf):
+    documento = fitz.open(stream=pdf, filetype="pdf")
+    return [pagina.get_pixmap(dpi=90).tobytes("png") for pagina in documento]
+
+
+# Opções gerais da seção 5 (lidas aqui para a prévia de cada música usar as mesmas)
+colunas_padrao = st.session_state.get("layout_padrao", 2)
+fonte_escolhida = st.session_state.get("fonte", "Automático")
+tamanho = None if fonte_escolhida == "Automático" else fonte_escolhida
+
 # ---------------------------------------------------------------- 4. Revisar e editar
 com_resultado = [m for m in musicas if m["resultado"]]
 erros = [m for m in com_resultado if m["resultado"]["Status"] != "OK"]
@@ -436,23 +453,38 @@ for musica in musicas:
         if mudou:
             b3.caption("⚠️ Alterações não salvas")
 
+        # Layout desta música (vale na hora, não precisa de "Salvar alterações")
+        l1, l2 = st.columns([2, 1], vertical_alignment="bottom")
+        escolha = l1.radio(
+            "Colunas desta música (Word, PDF e TXT)",
+            list(OPCOES_COLUNAS),
+            index=list(OPCOES_COLUNAS).index(musica.get("colunas")),
+            format_func=lambda n: OPCOES_COLUNAS[n] + (f" ({colunas_padrao})" if n is None else ""),
+            horizontal=True,
+            key=f"col_{mid}",
+            help="Padrão segue a opção geral da seção 5. Baixar.",
+        )
+        musica["colunas"] = escolha
+        if l2.toggle("👁️ Prévia desta música", key=f"prev_{mid}") and nova_cifra.strip():
+            # Mostra o texto que está na caixa, mesmo antes de salvar
+            item = {
+                "Posição": musica["posicao"], "URL": musica["url"], "Música": novo_titulo.strip(),
+                "Artista": novo_artista.strip(), "Cifra": nova_cifra.rstrip(), "Status": "OK", "Erro": "",
+                "Colunas": escolha,
+            }
+            pdf = gerar("pdf", json.dumps([item], ensure_ascii=False), colunas_padrao, tamanho)
+            paginas_musica = imagens_pdf(pdf)
+            st.caption(f"{len(paginas_musica)} página(s)" + (" · inclui alterações ainda não salvas" if mudou else ""))
+            for inicio in range(0, len(paginas_musica), 2):
+                for coluna, imagem in zip(st.columns(2), paginas_musica[inicio:inicio + 2]):
+                    coluna.image(imagem, width="stretch")
+
 # ---------------------------------------------------------------- 5. Baixar
 prontas = [
-    {**m["resultado"], "Posição": m["posicao"]}
+    {**m["resultado"], "Posição": m["posicao"], "Colunas": m.get("colunas")}
     for m in musicas
     if m["resultado"] and m["resultado"]["Status"] == "OK"
 ]
-
-
-@st.cache_data(show_spinner=False, max_entries=40)
-def gerar(formato, dados_json, colunas, tamanho):
-    return EXPORTADORES[formato](json.loads(dados_json), colunas=colunas, tamanho=tamanho)
-
-
-@st.cache_data(show_spinner=False, max_entries=10)
-def imagens_pdf(pdf):
-    documento = fitz.open(stream=pdf, filetype="pdf")
-    return [pagina.get_pixmap(dpi=90).tobytes("png") for pagina in documento]
 
 
 st.header("5. Baixar")
@@ -461,14 +493,18 @@ if not prontas:
 else:
     o1, o2, _ = st.columns([1.2, 1, 2])
     colunas = o1.radio(
-        "Layout (Word, PDF e TXT)", [1, 2], index=1, horizontal=True,
+        "Layout padrão (Word, PDF e TXT)", [1, 2], index=1, horizontal=True, key="layout_padrao",
         format_func=lambda n: "1 coluna" if n == 1 else "2 colunas",
+        help="Vale para as músicas com colunas em \"Padrão\". Cada música pode ter a sua na seção 4.",
     )
     fonte = o2.selectbox(
-        "Tamanho da fonte", ["Automático", 8, 9, 10, 11, 12],
+        "Tamanho da fonte", ["Automático", 8, 9, 10, 11, 12], key="fonte",
         help="Automático escolhe a maior fonte que faz a música caber no menor número de páginas.",
     )
     tamanho = None if fonte == "Automático" else fonte
+    proprias = [m["posicao"] for m in musicas if m.get("colunas") and m["resultado"]]
+    if proprias:
+        st.caption("Com colunas próprias (definidas na edição): " + ", ".join(proprias))
     dados_json = json.dumps(prontas, ensure_ascii=False, sort_keys=True)
     if len(prontas) < len(musicas):
         st.caption(f"Serão incluídas {len(prontas)} de {len(musicas)} músicas (as que têm cifra).")

@@ -2,6 +2,7 @@
 Exporta as cifras extraídas para Word, PDF, texto e Excel.
 Cada função recebe a lista de músicas (dicts) e devolve o arquivo em bytes.
 Opções: colunas (1 ou 2) e tamanho da fonte (None = automático).
+Uma música pode ter "Colunas" próprio (1 ou 2), que tem prioridade sobre a opção geral.
 """
 
 import io
@@ -39,6 +40,10 @@ def _cifra(item):
     return item["Cifra"] if item["Status"] == "OK" else f"Não foi possível extrair: {item['Erro']}\n{item['URL']}"
 
 
+def _colunas(item, padrao):
+    return item.get("Colunas") or padrao
+
+
 def _area_colunas(colunas, folga=0):
     """Largura de cada coluna e altura disponível para a cifra (mm)"""
     largura = (PAGINA_L - 2 * MARGEM_LADO - ESPACO_COLUNAS * (colunas - 1)) / colunas
@@ -51,7 +56,7 @@ def exportar_txt(dados, colunas=1, tamanho=None):
     blocos = ["CIFRAS DA MISSA", ""]
     for item in dados:
         blocos += ["=" * 60, item["Posição"].upper(), _nome(item), "=" * 60, ""]
-        if colunas == 1:
+        if _colunas(item, colunas) == 1:
             blocos.append(_cifra(item))
         else:
             unidades, _ = preparar(_cifra(item), LARGURA_TXT)
@@ -99,18 +104,18 @@ def _paragrafo(doc, texto, tamanho, negrito=False, cor=None, fonte="Courier New"
 def exportar_docx(dados, colunas=1, tamanho=None):
     doc = Document()
     _configurar_pagina(doc.sections[0])
-    # Folga de 10 mm: o Word calcula alturas um pouco diferente do PDF
-    largura, altura = _area_colunas(colunas, folga=10)
-
     for i, item in enumerate(dados):
+        n_colunas = _colunas(item, colunas)
+        # Folga de 10 mm: o Word calcula alturas um pouco diferente do PDF
+        largura, altura = _area_colunas(n_colunas, folga=10)
         secao = doc.sections[-1] if i == 0 else doc.add_section(WD_SECTION.NEW_PAGE)
         _definir_colunas(secao, 1)
         _paragrafo(doc, item["Posição"], 16, negrito=True, fonte="Arial").paragraph_format.space_after = Pt(2)
         _paragrafo(doc, _nome(item), 12, fonte="Arial").paragraph_format.space_after = Pt(10)
 
         # Conteúdo numa seção contínua com as colunas; quebras de coluna calculadas pelo layout
-        _definir_colunas(doc.add_section(WD_SECTION.CONTINUOUS), colunas)
-        t, paginas = montar(_cifra(item), colunas, largura, altura, tamanho)
+        _definir_colunas(doc.add_section(WD_SECTION.CONTINUOUS), n_colunas)
+        t, paginas = montar(_cifra(item), n_colunas, largura, altura, tamanho)
         todas = [coluna for pagina in paginas for coluna in pagina]
         for n, coluna in enumerate(todas):
             ultimo = None
@@ -120,7 +125,7 @@ def exportar_docx(dados, colunas=1, tamanho=None):
             if n < len(todas) - 1:
                 if ultimo is None:
                     ultimo = _paragrafo(doc, "", t)
-                ultimo.add_run().add_break(WD_BREAK.COLUMN if colunas > 1 else WD_BREAK.PAGE)
+                ultimo.add_run().add_break(WD_BREAK.COLUMN if n_colunas > 1 else WD_BREAK.PAGE)
 
     buffer = io.BytesIO()
     doc.save(buffer)
@@ -139,11 +144,12 @@ def _latin1(texto):
 def exportar_pdf(dados, colunas=1, tamanho=None):
     pdf = FPDF(format="A4")
     pdf.set_auto_page_break(False)
-    largura, altura = _area_colunas(colunas)
     topo = MARGEM_TOPO + CABECALHO
 
     for item in dados:
-        t, paginas = montar(_cifra(item), colunas, largura, altura, tamanho)
+        n_colunas = _colunas(item, colunas)
+        largura, altura = _area_colunas(n_colunas)
+        t, paginas = montar(_cifra(item), n_colunas, largura, altura, tamanho)
         altura_linha = t * ENTRELINHA * PT_MM
 
         for n, pagina in enumerate(paginas):
