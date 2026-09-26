@@ -7,6 +7,7 @@ import asyncio
 import json
 import re
 import sys
+import unicodedata
 import uuid
 import zlib
 from datetime import datetime
@@ -17,6 +18,7 @@ import streamlit as st
 
 RAIZ = Path(__file__).resolve().parent.parent
 PASTA_REPERTORIOS = RAIZ / "repertorios"
+ARQUIVO_PARTES = RAIZ / "partes_missa.json"
 
 # Permite importar os módulos da pasta scripts/
 sys.path.insert(0, str(RAIZ / "scripts"))
@@ -117,6 +119,40 @@ def carregar_repertorio(nome=None, exemplo=False):
     st.session_state.salvo_em = None
 
 
+# ---------------------------------------------------------------- Partes da missa (lista suspensa)
+def carregar_partes():
+    """Lista de partes na ordem da missa; começa com a lista padrão"""
+    try:
+        return json.loads(ARQUIVO_PARTES.read_text(encoding="utf-8"))
+    except (FileNotFoundError, ValueError):
+        return list(PARTES_MISSA)
+
+
+def salvar_partes(partes):
+    ARQUIVO_PARTES.write_text(json.dumps(partes, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def _comparavel(texto):
+    """Sem acentos, minúsculas e sem espaços sobrando ("comunhao" == "Comunhão")"""
+    sem_acento = unicodedata.normalize("NFKD", texto).encode("ascii", "ignore").decode()
+    return " ".join(sem_acento.lower().split())
+
+
+def parte_da_lista(nome, partes, depois_de=None):
+    """
+    Devolve o nome como está na lista (ignorando acentos/maiúsculas).
+    Se a parte não existe, cria: depois de 'depois_de' ou no fim da lista.
+    """
+    nome = " ".join(nome.split())
+    for parte in partes:
+        if _comparavel(parte) == _comparavel(nome):
+            return parte
+    posicao = partes.index(depois_de) + 1 if depois_de in partes else len(partes)
+    partes.insert(posicao, nome)
+    salvar_partes(partes)
+    return nome
+
+
 def nova_musica(posicao, url):
     return {"id": uuid.uuid4().hex, "posicao": posicao, "url": url.strip(), "resultado": None}
 
@@ -137,6 +173,7 @@ if estado_json() != st.session_state.ultimo_salvo:
     salvar_repertorio()
 
 musicas = st.session_state.musicas
+partes = carregar_partes()
 
 # ---------------------------------------------------------------- Barra lateral
 with st.sidebar:
@@ -174,7 +211,10 @@ aba_um, aba_varios = st.tabs(["Um link", "Vários links de uma vez"])
 with aba_um:
     with st.form("adicionar", clear_on_submit=True):
         col_pos, col_url = st.columns([1, 3])
-        posicao = col_pos.selectbox("Parte da missa", PARTES_MISSA, accept_new_options=True)
+        posicao = col_pos.selectbox(
+            "Parte da missa", partes, accept_new_options=True,
+            help="Escolha na lista ou digite um nome novo para criar a parte.",
+        )
         url = col_url.text_input(
             "Link da cifra (deixe vazio para digitar a cifra à mão)",
             placeholder="https://www.cifraclub.com.br/...",
@@ -183,7 +223,7 @@ with aba_um:
             if url.strip() and not link_valido(url.strip()):
                 st.error("Cole um link completo, começando com https://")
             else:
-                musicas.append(nova_musica(posicao, url))
+                musicas.append(nova_musica(parte_da_lista(posicao, partes), url))
                 st.rerun()
 
 with aba_varios:
@@ -196,9 +236,9 @@ with aba_varios:
         if st.form_submit_button("➕ Adicionar todos", type="primary"):
             invalidas = []
             for linha in filter(str.strip, texto.splitlines()):
-                posicao, _, url = linha.rpartition("|") if "|" in linha else ("Outra", "", linha)
+                posicao, _, url = linha.rpartition("|")
                 if link_valido(url.strip()):
-                    musicas.append(nova_musica(posicao.strip() or "Outra", url))
+                    musicas.append(nova_musica(parte_da_lista(posicao, partes) if posicao.strip() else "Outra", url))
                 else:
                     invalidas.append(linha)
             if invalidas:
@@ -209,9 +249,39 @@ with aba_varios:
 # ---------------------------------------------------------------- 2. Organizar
 st.header(f"2. Lista de músicas ({len(musicas)})")
 
+with st.expander("⚙️ Partes da missa (opções da lista suspensa)"):
+    st.caption("Ordem usada em **Organizar na ordem da missa**: " + " → ".join(partes))
+    with st.form("nova_parte", clear_on_submit=True):
+        c1, c2, c3 = st.columns([2, 2, 1], vertical_alignment="bottom")
+        nova = c1.text_input("Nova parte", placeholder="Ex.: Salmo responsorial, Canto a Maria")
+        depois = c2.selectbox("Colocar depois de", ["(no início)"] + partes, index=len(partes))
+        if c3.form_submit_button("➕ Criar parte", type="primary"):
+            if not nova.strip():
+                st.error("Digite o nome da parte.")
+            elif any(_comparavel(p) == _comparavel(nova) for p in partes):
+                st.warning(f"A parte \"{nova.strip()}\" já existe.")
+            else:
+                if depois == "(no início)":
+                    partes.insert(0, " ".join(nova.split()))
+                    salvar_partes(partes)
+                else:
+                    parte_da_lista(nova, partes, depois_de=depois)
+                st.rerun()
+
+    c1, c2, c3 = st.columns([2, 1, 1.3], vertical_alignment="bottom")
+    remover = c1.selectbox("Remover parte", partes, key="parte_remover")
+    if c2.button("🗑️ Remover", disabled=not partes):
+        partes.remove(remover)
+        salvar_partes(partes)
+        st.rerun()
+    if c3.button("↩️ Restaurar lista padrão"):
+        salvar_partes(list(PARTES_MISSA))
+        st.rerun()
+    st.caption("Remover uma parte não altera as músicas que já usam ela.")
+
 col_a, col_b, _ = st.columns([1.3, 1, 3])
 if col_a.button("🔀 Organizar na ordem da missa", disabled=not musicas):
-    st.session_state.musicas = ordenar_por_missa(musicas)
+    st.session_state.musicas = ordenar_por_missa(musicas, partes)
     st.rerun()
 if col_b.button("🗑️ Limpar lista", disabled=not musicas):
     st.session_state.musicas = []
@@ -237,9 +307,15 @@ def nome_musica(resultado):
 for i, musica in enumerate(musicas):
     col_st, col_pos, col_info, col_cima, col_baixo, col_del = st.columns([0.3, 1.2, 5, 0.4, 0.4, 0.4])
     col_st.markdown(f"### {icone(musica)}")
-    musica["posicao"] = col_pos.text_input(
-        "Parte", musica["posicao"], key=f"pos_{musica['id']}", label_visibility="collapsed"
+    # Parte que não está na lista (ex.: "Outra" ou removida) continua aparecendo como opção
+    opcoes = partes if musica["posicao"] in partes else partes + [musica["posicao"]]
+    escolhida = col_pos.selectbox(
+        "Parte", opcoes, index=opcoes.index(musica["posicao"]), key=f"pos_{musica['id']}_{musica['posicao']}",
+        label_visibility="collapsed", accept_new_options=True,
     )
+    if escolhida != musica["posicao"]:
+        musica["posicao"] = parte_da_lista(escolhida, partes)
+        st.rerun()
     origem = NOMES_SITE[detectar_site(musica["url"])] if musica["url"] else "Digitada à mão"
     col_info.markdown(
         f"**{nome_musica(musica['resultado']) or 'Ainda sem cifra'}** · {origem}  \n"

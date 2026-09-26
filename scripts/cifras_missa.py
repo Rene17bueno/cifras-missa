@@ -60,12 +60,14 @@ def detectar_site(url):
     return "outro"
 
 
-def ordenar_por_missa(musicas):
+def ordenar_por_missa(musicas, ordem=None):
     """Ordena as músicas na sequência da missa (posições desconhecidas vão para o fim)"""
+    ordem = PARTES_MISSA if ordem is None else ordem
+
     def chave(musica):
-        if musica["posicao"] in PARTES_MISSA:
-            return PARTES_MISSA.index(musica["posicao"])
-        return len(PARTES_MISSA)
+        if musica["posicao"] in ordem:
+            return ordem.index(musica["posicao"])
+        return len(ordem)
     return sorted(musicas, key=chave)
 
 
