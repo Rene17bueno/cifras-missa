@@ -208,6 +208,7 @@
     renderPartes();
     renderLista();
     renderResumo();
+    renderBusca();
     renderEditores();
     renderBaixar();
   }
@@ -249,7 +250,7 @@
         <div class="info"><b>${esc(nomeMusica(m.resultado) || "Ainda sem cifra")}</b> · ${esc(origem)}${tom ? ` · 🎼 ${esc(tom)}` : ""}
           ${m.url ? `<br><small>${esc(m.url)}</small>` : ""}</div>
         <div class="acoes">
-          ${m.url ? `<a class="botao" href="${esc(m.url)}" target="_blank" rel="noopener" title="Abrir a cifra no site">Abrir ↗</a>` : ""}
+          ${m.url ? `<a class="botao" href="${esc(m.url)}" target="_blank" rel="opener" title="Abrir a cifra no site">Abrir ↗</a>` : ""}
           <button class="icone" data-acao="subir" title="Subir" ${i === 0 ? "disabled" : ""}>⬆️</button>
           <button class="icone" data-acao="descer" title="Descer" ${i === musicas.length - 1 ? "disabled" : ""}>⬇️</button>
           <button class="icone" data-acao="remover" title="Remover">❌</button>
@@ -668,15 +669,65 @@
   }));
 
   // ---------------------------------------------------------------- Favorito "Enviar cifra"
+  /*
+   * Código do favorito. Roda na página do site de cifras (CifraClub, Músicas para Missa...):
+   * 1. abre/usa a aba do Cifras da Missa e pede a lista de links que ainda estão sem cifra;
+   * 2. manda a cifra da página aberta e busca as outras do MESMO site (o site não bloqueia,
+   *    porque o pedido sai da própria página dele), mandando uma por uma para cá.
+   * Regras para caber num favorito: sem comentários de linha e com ";" em tudo,
+   * porque o navegador junta as linhas do endereço do favorito.
+   */
+  function favorito(SITE, ORIGEM) {
+    var HASH = String.fromCharCode(35);
+    var w = window.open(SITE + HASH + "conectar-" + Date.now(), "cifras-missa");
+    if (!w) { alert("O navegador bloqueou a janela do Cifras da Missa. Permita pop-ups para este site e tente de novo."); return; }
+    var norm = function (u) {
+      try { var x = new URL(u); return (x.hostname.replace(/^www[.]/, "") + x.pathname.replace(/[/]+$/, "")).toLowerCase(); } catch (e) { return u; }
+    };
+    var extrair = function (doc, url) {
+      var p = doc.querySelector("pre");
+      if (!p || p.textContent.trim().length < 20) { return null; }
+      var t = doc.title.split(" - "), h = doc.querySelector("h1");
+      return { url: url, titulo: (h ? h.textContent : doc.title).trim(), artista: /cifraclub/.test(location.hostname) && t.length >= 3 ? t[1].trim() : "", cifra: p.textContent };
+    };
+    var enviar = function (m) { w.postMessage(m, ORIGEM); };
+    var conectado = false;
+    var ouvir = async function (e) {
+      if (e.origin !== ORIGEM || !e.data || e.data.tipo !== "lista" || conectado) { return; }
+      conectado = true;
+      window.removeEventListener("message", ouvir);
+      var atual = extrair(document, location.href);
+      var faltam = e.data.urls.filter(function (u) {
+        try { return new URL(u).hostname === location.hostname && norm(u) !== norm(location.href); } catch (x) { return false; }
+      });
+      enviar({ tipo: "inicio", total: faltam.length + (atual ? 1 : 0), site: location.hostname });
+      if (atual) { enviar({ tipo: "cifra", dados: atual, atual: true }); }
+      for (var i = 0; i < faltam.length; i++) {
+        var u = faltam[i];
+        try {
+          var r = await fetch(u, { credentials: "include" });
+          var d = extrair(new DOMParser().parseFromString(await r.text(), "text/html"), u);
+          enviar(d ? { tipo: "cifra", dados: d } : { tipo: "erro", url: u, erro: r.ok ? "a cifra não foi encontrada na página" : "o site respondeu com erro " + r.status });
+        } catch (x) { enviar({ tipo: "erro", url: u, erro: "não foi possível abrir a página (" + x + ")" }); }
+      }
+      enviar({ tipo: "fim", total: faltam.length, atual: !!atual });
+    };
+    window.addEventListener("message", ouvir);
+    var tentativas = 0;
+    var intervalo = setInterval(function () {
+      if (conectado || ++tentativas > 80) {
+        clearInterval(intervalo);
+        if (!conectado) { alert("Não consegui falar com o Cifras da Missa. Tente de novo."); }
+        return;
+      }
+      try { enviar({ tipo: "ola" }); } catch (x) { return; }
+    }, 250);
+  }
+
   function codigoFavorito() {
     const site = location.href.split("#")[0];
-    const js = "(function(){var p=document.querySelector('pre');"
-      + "if(!p||p.textContent.trim().length<20){alert('Não encontrei a cifra nesta página. Abra a página da música com a cifra.');return;}"
-      + "var t=document.title.split(' - '),h=document.querySelector('h1');"
-      + "var d={url:location.href,titulo:(h?h.textContent:document.title).trim(),"
-      + "artista:/cifraclub/.test(location.hostname)&&t.length>=3?t[1].trim():'',cifra:p.textContent};"
-      + `window.open(${JSON.stringify(site)}+'#importar='+encodeURIComponent(JSON.stringify(d)),'cifras-missa');})();`;
-    return "javascript:" + js;
+    const fonte = favorito.toString().replace(/\s*\n\s*/g, " ");
+    return `javascript:(${fonte})(${JSON.stringify(site)},${JSON.stringify(location.origin)});`;
   }
 
   $("#marcador").href = codigoFavorito();
@@ -694,34 +745,117 @@
     }
   });
 
-  /** Recebe a cifra enviada pelo favorito (vem no endereço, depois de #importar=) */
+  /** Links das músicas que ainda estão sem cifra */
+  const linksPendentes = () => rep.musicas.filter((m) => m.url && !comCifra(m)).map((m) => m.url);
+
+  function hostDe(url) {
+    try { return new URL(url).hostname.replace(/^www\./, ""); } catch { return ""; }
+  }
+
+  /** Um botão por site com cifras faltando: abre uma delas para o favorito buscar todas */
+  function renderBusca() {
+    const grupos = new Map();
+    for (const m of rep.musicas) {
+      if (!m.url || comCifra(m)) continue;
+      const host = hostDe(m.url);
+      if (!grupos.has(host)) grupos.set(host, []);
+      grupos.get(host).push(m);
+    }
+    const el = $("#botoes-sites");
+    if (!rep.musicas.some((m) => m.url)) { el.innerHTML = ""; return; }
+    if (!grupos.size) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link já têm cifra.</p>'; return; }
+    el.innerHTML = [...grupos].map(([host, musicas]) => {
+      const nome = NOMES_SITE[detectarSite(musicas[0].url)];
+      const rotulo = nome === NOMES_SITE.outro ? host : nome;
+      return `<button class="primario" data-abrir="${esc(musicas[0].url)}">🔎 ${esc(rotulo)} — ${musicas.length} faltando</button>`;
+    }).join("");
+  }
+
+  $("#botoes-sites").addEventListener("click", (e) => {
+    const botao = e.target.closest("button[data-abrir]");
+    // Sem "noopener": assim o favorito consegue voltar para esta mesma aba
+    if (botao) window.open(botao.dataset.abrir, "_blank");
+  });
+
+  /** Aplica uma cifra recebida na música com o mesmo link (ou cria uma música nova) */
+  function receberCifra(d, { atual = false, lote = false } = {}) {
+    const textos = { Música: (d.titulo || "").trim(), Artista: (d.artista || "").trim(), Cifra: Layout.limparCifra(d.cifra || "") };
+    const resultado = { ...textos, URL: d.url, Status: "OK", Erro: "", Original: textos, Editado: false };
+    const alvo = rep.musicas.find((m) => m.url && normalizarUrl(m.url) === normalizarUrl(d.url));
+    if (alvo) {
+      if (alvo.resultado && alvo.resultado.Editado && (!atual
+          || !window.confirm(`"${alvo.posicao}" tem edições. Substituir pela cifra do site?`))) return null;
+      alvo.resultado = { ...resultado, Posição: alvo.posicao };
+      delete rascunhos[alvo.id];
+      if (!lote) abertos.add(alvo.id);
+      return `${alvo.posicao} — ${textos.Música}`;
+    }
+    const m = novaMusica("Outra", d.url);
+    m.resultado = { ...resultado, Posição: m.posicao };
+    rep.musicas.push(m);
+    if (!lote) abertos.add(m.id);
+    return `${textos.Música} (nova música: escolha a parte da missa na lista)`;
+  }
+
+  /** Favorito antigo: a cifra vem no endereço, depois de #importar= */
   function receberDoFavorito() {
+    if (/^#conectar-/.test(location.hash)) { history.replaceState(null, "", location.pathname + location.search); return; }
     const achado = location.hash.match(/^#importar=([\s\S]*)$/);
     if (!achado) return;
     history.replaceState(null, "", location.pathname + location.search);
     let d;
     try { d = JSON.parse(decodeURIComponent(achado[1])); } catch { aviso("Não consegui ler a cifra enviada."); return; }
-    const textos = { Música: (d.titulo || "").trim(), Artista: (d.artista || "").trim(), Cifra: Layout.limparCifra(d.cifra || "") };
-    const resultado = { ...textos, URL: d.url, Status: "OK", Erro: "", Original: textos, Editado: false };
-
-    const alvo = rep.musicas.find((m) => m.url && normalizarUrl(m.url) === normalizarUrl(d.url));
-    if (alvo) {
-      if (alvo.resultado && alvo.resultado.Editado
-          && !window.confirm(`"${alvo.posicao}" tem edições. Substituir pela cifra do site?`)) return;
-      alvo.resultado = { ...resultado, Posição: alvo.posicao };
-      delete rascunhos[alvo.id];
-      abertos.add(alvo.id);
-      aviso(`Cifra recebida: ${alvo.posicao} — ${textos.Música}`);
-    } else {
-      const m = novaMusica("Outra", d.url);
-      m.resultado = { ...resultado, Posição: m.posicao };
-      rep.musicas.push(m);
-      abertos.add(m.id);
-      aviso(`Cifra recebida: ${textos.Música}. Escolha a parte da missa na lista.`);
-    }
-    salvar();
-    render();
+    const recebida = receberCifra(d, { atual: true });
+    if (recebida) { aviso(`Cifra recebida: ${recebida}`); salvar(); render(); }
   }
+
+  // Favorito novo: conversa por mensagens com a página do site de cifras
+  let busca = null;              // {site, total, recebidas, erros}
+  let temporizadorBusca = null;
+  function atualizarDepoisDaBusca() {
+    clearTimeout(temporizadorBusca);
+    temporizadorBusca = setTimeout(() => { salvar(); render(); }, 150);
+  }
+  function mostrarProgresso(texto) {
+    const el = $("#progresso-busca");
+    el.hidden = !texto;
+    el.textContent = texto || "";
+  }
+
+  window.addEventListener("message", (e) => {
+    const msg = e.data;
+    if (!msg || typeof msg !== "object" || typeof msg.tipo !== "string") return;
+    if (msg.tipo === "ola") {
+      if (e.source) e.source.postMessage({ tipo: "lista", urls: linksPendentes() }, e.origin);
+      return;
+    }
+    if (!/^https?:\/\//.test(e.origin)) return;
+    if (msg.tipo === "cifra" && msg.dados && typeof msg.dados.cifra === "string") {
+      const recebida = receberCifra(msg.dados, { atual: !!msg.atual, lote: !msg.atual });
+      if (recebida && msg.atual) aviso(`Cifra recebida: ${recebida}`);
+      if (recebida && busca) busca.recebidas += 1;
+      atualizarDepoisDaBusca();
+    } else if (msg.tipo === "inicio") {
+      busca = { site: hostDe("https://" + msg.site), total: msg.total, recebidas: 0, erros: [] };
+      mostrarProgresso("");
+    } else if (msg.tipo === "erro" && busca) {
+      const m = rep.musicas.find((x) => x.url && normalizarUrl(x.url) === normalizarUrl(msg.url));
+      if (m && !comCifra(m)) {
+        m.resultado = { Posição: m.posicao, URL: m.url, Música: "", Artista: "", Cifra: "", Status: "Erro", Erro: String(msg.erro) };
+      }
+      busca.erros.push(m ? m.posicao : msg.url);
+      atualizarDepoisDaBusca();
+    } else if (msg.tipo === "fim" && busca) {
+      const partesTexto = [`${busca.recebidas} de ${busca.total} cifra(s) recebida(s) de ${busca.site}`];
+      if (busca.erros.length) partesTexto.push(`com erro: ${busca.erros.join(", ")} (tente de novo ou cole a cifra)`);
+      mostrarProgresso("✅ " + partesTexto.join(" · "));
+      aviso(partesTexto[0]);
+      busca = null;
+      atualizarDepoisDaBusca();
+      return;
+    }
+    if (busca) mostrarProgresso(`⏳ Buscando em ${busca.site}: ${busca.recebidas + busca.erros.length} de ${busca.total}…`);
+  });
 
   // Outra aba desta página mudou o repertório: recarrega
   window.addEventListener("storage", (e) => {

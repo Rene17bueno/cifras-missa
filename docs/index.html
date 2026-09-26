@@ -106,16 +106,19 @@
     <!-- 3. Trazer cifras -->
     <section class="cartao">
       <h2>3. Trazer as cifras dos sites</h2>
-      <p>Os sites de cifras não deixam outras páginas lerem o conteúdo deles. Por isso, quem busca a cifra é você,
-        com um <b>botão nos favoritos</b> que funciona no CifraClub, no Músicas para Missa e em outros sites de cifra:</p>
+      <p>Os sites de cifras não deixam outras páginas lerem o conteúdo deles. Por isso a busca é feita por um
+        <b>botão nos favoritos</b>, que busca <b>de uma vez todas as cifras que faltam</b> de um site
+        (CifraClub, Músicas para Missa e outros sites de cifra):</p>
       <ol>
-        <li>Arraste este botão para a barra de favoritos:
+        <li><b>Só na primeira vez:</b> arraste este botão para a barra de favoritos:
           <a id="marcador" class="marcador" href="#">🎵 Enviar cifra</a>
           <span class="dica">(no celular, veja as instruções abaixo)</span></li>
-        <li>Na lista acima, clique em <b>Abrir ↗</b> na música (ou abra qualquer cifra no site).</li>
-        <li>Com a cifra aberta, clique no favorito <b>🎵 Enviar cifra</b>. A cifra chega aqui sozinha,
-          na música com o mesmo link (ou como música nova).</li>
+        <li>Clique no botão do site abaixo. Ele abre uma das cifras que faltam.</li>
+        <li>Na página que abrir, clique no favorito <b>🎵 Enviar cifra</b>. Todas as cifras daquele site chegam aqui
+          de uma vez.</li>
       </ol>
+      <div id="botoes-sites" class="linha"></div>
+      <p id="progresso-busca" class="aviso" hidden></p>
       <details>
         <summary>Como criar o favorito no celular ou se arrastar não funcionar</summary>
         <ol>
@@ -126,7 +129,8 @@
         </ol>
         <button id="btn-copiar-marcador">📋 Copiar código do favorito</button>
       </details>
-      <p class="dica">Também dá para colar a cifra direto no editor da seção 4.</p>
+      <p class="dica">Instalou o favorito antes? Troque pelo novo (arraste de novo) para buscar todas de uma vez;
+        o antigo continua trazendo uma cifra por vez. Também dá para colar a cifra direto no editor da seção 4.</p>
       <p id="resumo-cifras" class="dica"></p>
     </section>
 
