@@ -6,6 +6,7 @@ Monte a lista de músicas, extraia as cifras, edite, salve o repertório e baixe
 import asyncio
 import json
 import re
+import subprocess
 import sys
 import unicodedata
 import uuid
@@ -17,6 +18,8 @@ import fitz  # PyMuPDF, para a prévia do PDF
 import streamlit as st
 
 RAIZ = Path(__file__).resolve().parent.parent
+# No computador (Windows) o app usa o Edge; no site online (Streamlit Cloud, Linux) usa o Chromium do Playwright
+NA_NUVEM = sys.platform != "win32"
 PASTA_REPERTORIOS = RAIZ / "repertorios"
 ARQUIVO_PARTES = RAIZ / "partes_missa.json"
 
@@ -223,6 +226,11 @@ with st.sidebar:
     # Preenchido no fim da página, depois do salvamento automático
     aviso_salvo = st.empty()
     st.caption("As alterações também são salvas automaticamente.")
+    if NA_NUVEM:
+        st.warning(
+            "No site online, os repertórios ficam no servidor: quem acessar o site pode vê-los, "
+            "e eles podem sumir quando o site reinicia. Baixe os arquivos para guardar."
+        )
 
     st.divider()
     salvos = repertorios_salvos()
@@ -374,10 +382,25 @@ for i, musica in enumerate(musicas):
 
 # ---------------------------------------------------------------- 3. Extrair
 st.header("3. Extrair cifras")
-st.caption(
-    "O programa abre o Edge (ou Chrome) com a janela fora da tela, porque o CifraClub "
-    "bloqueia navegadores invisíveis. Pode aparecer um ícone na barra de tarefas enquanto ele trabalha."
-)
+if NA_NUVEM:
+    st.caption(
+        "No site online, o CifraClub costuma bloquear a extração. O Músicas para Missa funciona; "
+        "para o CifraClub, abra o link, copie a cifra e cole no editor da seção 4."
+    )
+else:
+    st.caption(
+        "O programa abre o Edge (ou Chrome) com a janela fora da tela, porque o CifraClub "
+        "bloqueia navegadores invisíveis. Pode aparecer um ícone na barra de tarefas enquanto ele trabalha."
+    )
+
+
+@st.cache_resource(show_spinner="Preparando o navegador (só na primeira vez)...")
+def preparar_navegador():
+    """No servidor online o Chromium do Playwright não vem instalado; baixa uma vez"""
+    if NA_NUVEM:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=False)
+    return True
+
 
 com_link = [m for m in musicas if m["url"]]
 pendentes = [m for m in com_link if not m["resultado"] or m["resultado"]["Status"] != "OK"]
@@ -389,6 +412,7 @@ if extrair_todas and any(m["resultado"] and m["resultado"].get("Editado") for m 
 
 alvo = com_link if extrair_todas else pendentes if extrair_pend else []
 if alvo:
+    preparar_navegador()
     barra = st.progress(0.0, text="Abrindo o navegador...")
 
     def ao_progresso(i, total, musica):
