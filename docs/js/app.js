@@ -449,6 +449,7 @@
     $("#um-url").value = "";
     salvar();
     render();
+    avisoDepoisDeAdicionar([url]);
   });
 
   $("#aba-varios").addEventListener("submit", (e) => {
@@ -463,10 +464,18 @@
     }
     $("#varios-erro").hidden = !invalidas.length;
     $("#varios-erro").textContent = invalidas.length ? "Linhas ignoradas (link inválido):\n" + invalidas.join("\n") : "";
+    const links = $("#varios-texto").value.split(/\r?\n/).map((l) => l.slice(l.lastIndexOf("|") + 1).trim()).filter(linkValido);
     if (!invalidas.length) $("#varios-texto").value = "";
     salvar();
     render();
+    avisoDepoisDeAdicionar(links);
   });
+
+  /** Músicas para Missa: busca a cifra na hora. CifraClub: lembra do favorito */
+  function avisoDepoisDeAdicionar(links) {
+    if (links.some(automatico)) buscarAutomatico();
+    if (links.some((u) => !automatico(u))) aviso("Música adicionada. Para as do CifraClub, use o botão da seção 3 e o favorito.");
+  }
 
   $("#aba-colar").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -753,6 +762,41 @@
   }
 
   /** Um botão por site com cifras faltando: abre uma delas para o favorito buscar todas */
+  // Busca automática pelo servidor (Cloudflare Worker, pasta worker/). O CifraClub bloqueia
+  // qualquer servidor (erro 403), então lá a busca continua pelo favorito.
+  const API_BUSCA = "https://cifras-missa.renebueno17.workers.dev/";
+  const SITES_AUTOMATICOS = ["musicasparamissa.com.br"];
+  const automatico = (url) => SITES_AUTOMATICOS.includes(hostDe(url));
+  let buscandoAutomatico = false;
+
+  async function buscarAutomatico() {
+    const alvo = rep.musicas.filter((m) => m.url && !comCifra(m) && automatico(m.url));
+    if (!alvo.length || buscandoAutomatico) return;
+    buscandoAutomatico = true;
+    let ok = 0;
+    const erros = [];
+    for (const [i, m] of alvo.entries()) {
+      mostrarProgresso(`⏳ Buscando cifras automaticamente: ${i + 1} de ${alvo.length}…`);
+      try {
+        const r = await fetch(API_BUSCA + "?url=" + encodeURIComponent(m.url));
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.erro || `erro ${r.status}`);
+        receberCifra(d, { lote: true });
+        ok += 1;
+      } catch (erro) {
+        const motivo = erro instanceof TypeError ? "sem conexão com o serviço de busca" : erro.message;
+        if (!comCifra(m)) m.resultado = { Posição: m.posicao, URL: m.url, Música: "", Artista: "", Cifra: "", Status: "Erro", Erro: motivo };
+        erros.push(m.posicao);
+      }
+      salvar();
+      render();
+    }
+    buscandoAutomatico = false;
+    mostrarProgresso(`✅ ${ok} de ${alvo.length} cifra(s) buscada(s) automaticamente`
+      + (erros.length ? ` · com erro: ${erros.join(", ")} (tente de novo ou cole a cifra)` : ""));
+    render();
+  }
+
   function renderBusca() {
     const grupos = new Map();
     for (const m of rep.musicas) {
@@ -767,11 +811,15 @@
     el.innerHTML = [...grupos].map(([host, musicas]) => {
       const nome = NOMES_SITE[detectarSite(musicas[0].url)];
       const rotulo = nome === NOMES_SITE.outro ? host : nome;
-      return `<button class="primario" data-abrir="${esc(musicas[0].url)}">🔎 ${esc(rotulo)} — ${musicas.length} faltando</button>`;
+      if (automatico(musicas[0].url)) {
+        return `<button class="primario" data-auto="1">⚡ Buscar do ${esc(rotulo)} — ${musicas.length} faltando</button>`;
+      }
+      return `<button class="primario" data-abrir="${esc(musicas[0].url)}">🔎 ${esc(rotulo)} (pelo favorito) — ${musicas.length} faltando</button>`;
     }).join("");
   }
 
   $("#botoes-sites").addEventListener("click", (e) => {
+    if (e.target.closest("button[data-auto]")) { buscarAutomatico(); return; }
     const botao = e.target.closest("button[data-abrir]");
     // Sem "noopener": assim o favorito consegue voltar para esta mesma aba
     if (botao) window.open(botao.dataset.abrir, "_blank");

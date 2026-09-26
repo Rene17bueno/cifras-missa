@@ -1,0 +1,5 @@
+# Cloudflare Worker que busca as cifras para a página HTML (docs/)
+# Publicar: npx wrangler deploy  (dentro desta pasta)
+name = "cifras-missa"
+main = "cifra.js"
+compatibility_date = "2026-09-01"

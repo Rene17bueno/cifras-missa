@@ -9,3 +9,6 @@ cifras_missa.pdf
 cifras_missa.txt
 repertorios/
 partes_missa.json
+.netlify/
+node_modules/
+.wrangler/

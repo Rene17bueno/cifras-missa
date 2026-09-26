@@ -58,9 +58,11 @@ em `docs/index.html`.
 
 - Tem as mesmas funções do app: lista com partes da missa, editor, troca de tom, 1 ou 2 colunas por música,
   prévia e downloads em PDF, Word, TXT e Excel (com o mesmo layout do app).
-- As cifras chegam pelo favorito **🎵 Enviar cifra**: abra a cifra no CifraClub ou no Músicas para Missa e
-  clique no favorito. Os sites não deixam a página buscar a cifra sozinha, mas o favorito lê a página que você
-  está vendo. Também dá para colar a cifra.
+- **Músicas para Missa:** automático. Ao adicionar o link, a cifra é buscada pelo Worker da Cloudflare
+  (`worker/`, publicado em `cifras-missa.renebueno17.workers.dev`), que só atende esse site e o CifraClub
+  e só responde ao site publicado.
+- **CifraClub:** bloqueia qualquer servidor (erro 403), então as cifras chegam pelo favorito **🎵 Enviar cifra**:
+  abra uma cifra do CifraClub e clique no favorito; ele busca de uma vez todas as que faltam. Também dá para colar a cifra.
 - Os repertórios ficam salvos no navegador. **Salvar cópia (.json)** faz backup e leva para outro aparelho;
   o arquivo é o mesmo formato do app do computador (abre nos dois).
 
@@ -88,6 +90,7 @@ scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
 docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
+worker/                  Cloudflare Worker que busca as cifras para a página (publicar: npx wrangler deploy)
 ```
 
 ## Sites suportados
