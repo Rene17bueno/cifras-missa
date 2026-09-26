@@ -33,7 +33,8 @@ def _nome(item):
     """'Música (Artista)' ou um aviso quando a extração falhou"""
     if item["Status"] != "OK":
         return "(cifra não extraída)"
-    return f"{item['Música']} ({item['Artista']})" if item["Artista"] else item["Música"]
+    nome = f"{item['Música']} ({item['Artista']})" if item["Artista"] else item["Música"]
+    return f"{nome}  -  Tom: {item['Tom']}" if item.get("Tom") else nome
 
 
 def _cifra(item):

@@ -24,7 +24,7 @@ Abre em <http://localhost:8501>. Na página:
 1. **Adicionar músicas**: escolha a parte da missa e cole o link. Na aba "Vários links de uma vez", cole um por linha no formato `Parte da missa | link`. Deixe o link vazio para digitar a cifra à mão.
 2. **Organizar**: use ⬆️ ⬇️ ❌ em cada música ou **Organizar na ordem da missa**.
 3. **Extrair**: **Extrair todas** ou **Extrair só as que faltam** (para tentar de novo as que deram erro).
-4. **Revisar e editar**: abra a música, altere título, artista ou cifra e clique em **Salvar alterações**. **Voltar ao original** desfaz as edições. Em **Colunas desta música**, escolha 1 ou 2 colunas só para ela (ou "Padrão"), e ligue **Prévia desta música** para ver como fica.
+4. **Revisar e editar**: abra a música, altere título, artista ou cifra e clique em **Salvar alterações**. **Voltar ao original** desfaz as edições. Em **Colunas desta música**, escolha 1 ou 2 colunas só para ela (ou "Padrão"), e ligue **Prévia desta música** para ver como fica. Em **Tom**, escolha o tom (C, C#, D, D#, E, F, F#, G, G#, A, A#, B) ou use **➖ ½ tom** / **➕ ½ tom**; a cifra guardada continua no tom original e **Tom original** desfaz.
 5. **Baixar**: escolha o layout padrão (1 ou 2 colunas) e o tamanho da fonte, veja a prévia do PDF e baixe em Word (.docx), PDF, Texto (.txt) ou Excel (.xlsx).
 
 ### Repertórios
@@ -54,6 +54,7 @@ A lista de músicas da linha de comando fica em `MUSICAS`, no começo de `script
 app/app_cifras.py        interface Streamlit
 scripts/cifras_missa.py  extração das cifras (Playwright)
 scripts/layout.py        organização em colunas/páginas sem separar acorde e letra
+scripts/transpor.py      troca de tom dos acordes mantendo o alinhamento com a letra
 scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 ```

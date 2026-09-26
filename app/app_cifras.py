@@ -30,6 +30,7 @@ from cifras_missa import (  # noqa: E402
     ordenar_por_missa,
 )
 from exportar import EXPORTADORES  # noqa: E402
+from transpor import nome_tom, tom_da_cifra, transpor  # noqa: E402
 
 st.set_page_config(page_title="Cifras da Missa", page_icon="🎵", layout="wide")
 
@@ -50,7 +51,8 @@ DOWNLOADS = [
     ("txt", "📝 Texto (.txt)", "text/plain"),
     ("xlsx", "📊 Excel (.xlsx)", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
 ]
-PREFIXOS_WIDGETS = ("pos_", "mus_", "art_", "cif_", "col_", "prev_")
+PREFIXOS_WIDGETS = ("pos_", "mus_", "art_", "cif_", "col_", "prev_", "tom_")
+BEMOL = {"C#": "Db", "D#": "Eb", "F#": "Gb", "G#": "Ab", "A#": "Bb"}
 OPCOES_COLUNAS = {None: "Padrão", 1: "1 coluna", 2: "2 colunas"}
 
 
@@ -152,6 +154,32 @@ def parte_da_lista(nome, partes, depois_de=None):
     partes.insert(posicao, nome)
     salvar_partes(partes)
     return nome
+
+
+# ---------------------------------------------------------------- Tom
+def rotulo_tom(indice, menor):
+    """'D#' vira 'D# (Eb)' para facilitar a leitura"""
+    nome = nome_tom(indice)
+    extra = f" ({BEMOL[nome]}{'m' if menor else ''})" if nome in BEMOL else ""
+    return nome + ("m" if menor else "") + extra
+
+
+def aplicar_tom(item, semitons):
+    """Item com a cifra no tom escolhido e o rótulo 'Tom' para o cabeçalho dos arquivos"""
+    tom = tom_da_cifra(item["Cifra"])
+    rotulo = nome_tom(tom[0] + semitons, tom[1]) if tom else ""
+    return {**item, "Cifra": transpor(item["Cifra"], semitons), "Tom": rotulo}
+
+
+def descricao_tom(musica):
+    """'Tom: D' ou 'Tom: D (original C)' para mostrar na lista"""
+    resultado = musica["resultado"]
+    tom = tom_da_cifra(resultado["Cifra"]) if resultado and resultado["Status"] == "OK" else None
+    if not tom:
+        return ""
+    semitons = musica.get("transpor", 0)
+    atual = rotulo_tom(tom[0] + semitons, tom[1])
+    return f"Tom: {atual}" + (f" (original {rotulo_tom(*tom)})" if semitons else "")
 
 
 def nova_musica(posicao, url):
@@ -318,8 +346,10 @@ for i, musica in enumerate(musicas):
         musica["posicao"] = parte_da_lista(escolhida, partes)
         st.rerun()
     origem = NOMES_SITE[detectar_site(musica["url"])] if musica["url"] else "Digitada à mão"
+    tom_info = descricao_tom(musica)
     col_info.markdown(
-        f"**{nome_musica(musica['resultado']) or 'Ainda sem cifra'}** · {origem}  \n"
+        f"**{nome_musica(musica['resultado']) or 'Ainda sem cifra'}** · {origem}"
+        + (f" · 🎼 {tom_info}" if tom_info else "") + "  \n"
         f"<small>{musica['url']}</small>",
         unsafe_allow_html=True,
     )
@@ -453,6 +483,34 @@ for musica in musicas:
         if mudou:
             b3.caption("⚠️ Alterações não salvas")
 
+        # Tom desta música (vale na hora; a cifra guardada continua no tom original)
+        semitons = musica.get("transpor", 0)
+        tom = tom_da_cifra(cifra_atual)
+        if tom:
+            raiz, menor = tom
+            t1, t2, t3, t4 = st.columns([1.4, 0.6, 0.6, 1.4], vertical_alignment="bottom")
+            destino = t1.selectbox(
+                f"Tom (original: {rotulo_tom(raiz, menor)})",
+                range(12),
+                index=(raiz + semitons) % 12,
+                format_func=lambda i: rotulo_tom(i, menor),
+                key=f"tom_{mid}_{semitons}",
+                help="Tom estimado pelo primeiro acorde. Os acordes mudam na prévia e nos arquivos baixados.",
+            )
+            novo = (destino - raiz) % 12
+            if t2.button("➖ ½ tom", key=f"desce_{mid}", help="Descer meio tom"):
+                novo = (semitons - 1) % 12
+            if t3.button("➕ ½ tom", key=f"sobe_{mid}", help="Subir meio tom"):
+                novo = (semitons + 1) % 12
+            if semitons and t4.button("↩️ Tom original", key=f"tomorig_{mid}"):
+                novo = 0
+            if novo != semitons:
+                musica["transpor"] = novo
+                st.rerun()
+            if semitons:
+                st.caption(f"🎼 Tocando em **{rotulo_tom(raiz + semitons, menor)}**. "
+                           "O editor continua mostrando o tom original; a prévia e os arquivos saem no tom novo.")
+
         # Layout desta música (vale na hora, não precisa de "Salvar alterações")
         l1, l2 = st.columns([2, 1], vertical_alignment="bottom")
         escolha = l1.radio(
@@ -467,11 +525,11 @@ for musica in musicas:
         musica["colunas"] = escolha
         if l2.toggle("👁️ Prévia desta música", key=f"prev_{mid}") and nova_cifra.strip():
             # Mostra o texto que está na caixa, mesmo antes de salvar
-            item = {
+            item = aplicar_tom({
                 "Posição": musica["posicao"], "URL": musica["url"], "Música": novo_titulo.strip(),
                 "Artista": novo_artista.strip(), "Cifra": nova_cifra.rstrip(), "Status": "OK", "Erro": "",
                 "Colunas": escolha,
-            }
+            }, semitons)
             pdf = gerar("pdf", json.dumps([item], ensure_ascii=False), colunas_padrao, tamanho)
             paginas_musica = imagens_pdf(pdf)
             st.caption(f"{len(paginas_musica)} página(s)" + (" · inclui alterações ainda não salvas" if mudou else ""))
@@ -481,7 +539,7 @@ for musica in musicas:
 
 # ---------------------------------------------------------------- 5. Baixar
 prontas = [
-    {**m["resultado"], "Posição": m["posicao"], "Colunas": m.get("colunas")}
+    aplicar_tom({**m["resultado"], "Posição": m["posicao"], "Colunas": m.get("colunas")}, m.get("transpor", 0))
     for m in musicas
     if m["resultado"] and m["resultado"]["Status"] == "OK"
 ]
