@@ -106,33 +106,36 @@
     <!-- 3. Trazer cifras -->
     <section class="cartao">
       <h2>3. Trazer as cifras dos sites</h2>
-      <p><b>⚡ Músicas para Missa: automático.</b> A cifra vem sozinha quando você adiciona o link
-        (ou clique no botão ⚡ abaixo).</p>
-      <p><b>🔎 CifraClub: pelo favorito.</b> O CifraClub bloqueia qualquer servidor e só abre para navegadores de
-        pessoas, então a busca é feita por um <b>botão nos favoritos</b>, que busca <b>de uma vez todas as cifras que
-        faltam</b> do site (também serve para outros sites de cifra):</p>
-      <ol>
-        <li><b>Só na primeira vez:</b> arraste este botão para a barra de favoritos:
-          <a id="marcador" class="marcador" href="#">🎵 Enviar cifra</a>
-          <span class="dica">(no celular, veja as instruções abaixo)</span></li>
-        <li>Clique no botão do site abaixo. Ele abre uma das cifras que faltam.</li>
-        <li>Na página que abrir, clique no favorito <b>🎵 Enviar cifra</b>. Todas as cifras daquele site chegam aqui
-          de uma vez.</li>
-      </ol>
+      <p>Clique em <b>⚡ Buscar cifras automaticamente</b>. As músicas que você adiciona já são buscadas sozinhas.</p>
+      <ul class="dica">
+        <li><b>Músicas para Missa:</b> a cifra vem direto do link.</li>
+        <li><b>CifraClub:</b> o CifraClub bloqueia buscas automáticas, então a mesma música é procurada pelo nome
+          no Músicas para Missa (mais de 5 mil músicas de missa). Confira a versão na seção 4.</li>
+      </ul>
       <div id="botoes-sites" class="linha"></div>
       <p id="progresso-busca" class="aviso" hidden></p>
       <details>
-        <summary>Como criar o favorito no celular ou se arrastar não funcionar</summary>
+        <summary>🔎 Quer a versão exata do CifraClub (ou de outro site)? Use o favorito</summary>
         <ol>
-          <li>Toque em <b>Copiar código do favorito</b>.</li>
-          <li>Crie um favorito qualquer no navegador (ex.: desta página), edite, troque o nome para
-            <b>Enviar cifra</b> e cole o código no lugar do endereço.</li>
-          <li>No site da cifra, toque na barra de endereço, digite <b>Enviar cifra</b> e toque no favorito.</li>
+          <li><b>Só na primeira vez:</b> arraste este botão para a barra de favoritos:
+            <a id="marcador" class="marcador" href="#">🎵 Enviar cifra</a></li>
+          <li>Clique no botão do site abaixo. Ele abre uma das cifras.</li>
+          <li>Na página que abrir, clique no favorito <b>🎵 Enviar cifra</b>. As cifras daquele site chegam aqui
+            de uma vez (inclusive substituindo as que vieram do Músicas para Missa).</li>
         </ol>
-        <button id="btn-copiar-marcador">📋 Copiar código do favorito</button>
+        <div id="botoes-favorito" class="linha"></div>
+        <details>
+          <summary>Como criar o favorito no celular ou se arrastar não funcionar</summary>
+          <ol>
+            <li>Toque em <b>Copiar código do favorito</b>.</li>
+            <li>Crie um favorito qualquer no navegador (ex.: desta página), edite, troque o nome para
+              <b>Enviar cifra</b> e cole o código no lugar do endereço.</li>
+            <li>No site da cifra, toque na barra de endereço, digite <b>Enviar cifra</b> e toque no favorito.</li>
+          </ol>
+          <button id="btn-copiar-marcador">📋 Copiar código do favorito</button>
+        </details>
       </details>
-      <p class="dica">Instalou o favorito antes? Troque pelo novo (arraste de novo) para buscar todas de uma vez;
-        o antigo continua trazendo uma cifra por vez. Também dá para colar a cifra direto no editor da seção 4.</p>
+      <p class="dica">Também dá para colar a cifra direto no editor da seção 4.</p>
       <p id="resumo-cifras" class="dica"></p>
     </section>
 
