@@ -48,6 +48,20 @@ python scripts/cifras_missa.py --formatos pdf --colunas 2    # PDF em 2 colunas
 
 A lista de músicas da linha de comando fica em `MUSICAS`, no começo de `scripts/cifras_missa.py`.
 
+### Página HTML (GitHub Pages, sem servidor)
+
+A pasta `docs/` tem a mesma ferramenta como página HTML, que roda direto no navegador e pode ser publicada
+de graça no GitHub Pages (Settings → Pages → branch `master`, pasta `/docs`). Também abre com dois cliques
+em `docs/index.html`.
+
+- Tem as mesmas funções do app: lista com partes da missa, editor, troca de tom, 1 ou 2 colunas por música,
+  prévia e downloads em PDF, Word, TXT e Excel (com o mesmo layout do app).
+- As cifras chegam pelo favorito **🎵 Enviar cifra**: abra a cifra no CifraClub ou no Músicas para Missa e
+  clique no favorito. Os sites não deixam a página buscar a cifra sozinha, mas o favorito lê a página que você
+  está vendo. Também dá para colar a cifra.
+- Os repertórios ficam salvos no navegador. **Salvar cópia (.json)** faz backup e leva para outro aparelho;
+  o arquivo é o mesmo formato do app do computador (abre nos dois).
+
 ### Site online (Streamlit Community Cloud)
 
 O app pode ser publicado de graça em <https://share.streamlit.io>, a partir deste repositório
@@ -71,6 +85,7 @@ scripts/transpor.py      troca de tom dos acordes mantendo o alinhamento com a l
 scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
+docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
 ```
 
 ## Sites suportados

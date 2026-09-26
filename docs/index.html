@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cifras da Missa</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
+  <link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+  <header class="topo">
+    <h1>🎵 Cifras da Missa</h1>
+    <p class="sub">1. Adicione as músicas → 2. Organize → 3. Traga as cifras → 4. Revise e edite → 5. Baixe</p>
+  </header>
+
+  <main>
+    <!-- Repertório -->
+    <section class="cartao repertorio">
+      <h2>📁 Repertório</h2>
+      <div class="linha">
+        <label class="campo cresce">Nome do repertório
+          <input id="nome-repertorio" type="text">
+        </label>
+        <label class="campo">Abrir repertório salvo
+          <select id="lista-repertorios"></select>
+        </label>
+        <button id="btn-abrir">📂 Abrir</button>
+        <button id="btn-novo">🆕 Novo</button>
+        <button id="btn-excluir" class="perigo">🗑️ Excluir</button>
+      </div>
+      <div class="linha">
+        <button id="btn-exportar-json">💾 Salvar cópia (.json)</button>
+        <label class="botao">📥 Abrir cópia (.json)<input id="arquivo-json" type="file" accept=".json,application/json" hidden></label>
+        <span id="status-salvo" class="dica"></span>
+      </div>
+      <p class="dica">Tudo é salvo automaticamente <b>neste navegador</b>. Use <b>Salvar cópia</b> para fazer backup
+        ou levar o repertório para outro aparelho (o arquivo também abre no app do computador).</p>
+    </section>
+
+    <!-- 1. Adicionar -->
+    <section class="cartao">
+      <h2>1. Adicionar músicas</h2>
+      <div class="abas" role="tablist">
+        <button class="aba ativa" data-aba="aba-um">Um link</button>
+        <button class="aba" data-aba="aba-varios">Vários links de uma vez</button>
+        <button class="aba" data-aba="aba-colar">Colar cifra</button>
+      </div>
+
+      <form id="aba-um" class="painel-aba">
+        <div class="linha">
+          <label class="campo">Parte da missa <select class="sel-parte" id="um-parte"></select></label>
+          <label class="campo cresce">Link da cifra
+            <input id="um-url" type="url" placeholder="https://www.cifraclub.com.br/..." required>
+          </label>
+          <button type="submit" class="primario">➕ Adicionar</button>
+        </div>
+      </form>
+
+      <form id="aba-varios" class="painel-aba" hidden>
+        <label class="campo">Um por linha, no formato <code>Parte da missa | link</code> (ou só o link)
+          <textarea id="varios-texto" rows="6" placeholder="Entrada | https://www.cifraclub.com.br/...&#10;Glória | https://musicasparamissa.com.br/..."></textarea>
+        </label>
+        <button type="submit" class="primario">➕ Adicionar todos</button>
+        <p id="varios-erro" class="erro" hidden></p>
+      </form>
+
+      <form id="aba-colar" class="painel-aba" hidden>
+        <div class="linha">
+          <label class="campo">Parte da missa <select class="sel-parte" id="colar-parte"></select></label>
+          <label class="campo cresce">Música <input id="colar-titulo" type="text" required></label>
+          <label class="campo cresce">Artista <input id="colar-artista" type="text"></label>
+        </div>
+        <label class="campo">Link (opcional) <input id="colar-url" type="url" placeholder="https://..."></label>
+        <label class="campo">Cifra (acordes na linha de cima da letra)
+          <textarea id="colar-cifra" class="mono" rows="10" required></textarea>
+        </label>
+        <button type="submit" class="primario">➕ Adicionar</button>
+      </form>
+    </section>
+
+    <!-- 2. Lista -->
+    <section class="cartao">
+      <h2>2. Lista de músicas (<span id="qtd-musicas">0</span>)</h2>
+      <details class="partes">
+        <summary>⚙️ Partes da missa (opções da lista suspensa)</summary>
+        <p class="dica">Ordem usada em <b>Organizar na ordem da missa</b>: <span id="ordem-partes"></span></p>
+        <form id="form-nova-parte" class="linha">
+          <label class="campo cresce">Nova parte <input id="nova-parte" type="text" placeholder="Ex.: Salmo responsorial, Canto a Maria"></label>
+          <label class="campo">Colocar depois de <select id="nova-parte-depois"></select></label>
+          <button type="submit" class="primario">➕ Criar parte</button>
+        </form>
+        <div class="linha">
+          <label class="campo">Remover parte <select id="remover-parte"></select></label>
+          <button id="btn-remover-parte">🗑️ Remover</button>
+          <button id="btn-restaurar-partes">↩️ Restaurar lista padrão</button>
+        </div>
+        <p class="dica">Remover uma parte não altera as músicas que já usam ela.</p>
+      </details>
+      <div class="linha">
+        <button id="btn-organizar">🔀 Organizar na ordem da missa</button>
+        <button id="btn-limpar" class="perigo">🗑️ Limpar lista</button>
+      </div>
+      <div id="lista-musicas"></div>
+    </section>
+
+    <!-- 3. Trazer cifras -->
+    <section class="cartao">
+      <h2>3. Trazer as cifras dos sites</h2>
+      <p>Os sites de cifras não deixam outras páginas lerem o conteúdo deles. Por isso, quem busca a cifra é você,
+        com um <b>botão nos favoritos</b> que funciona no CifraClub, no Músicas para Missa e em outros sites de cifra:</p>
+      <ol>
+        <li>Arraste este botão para a barra de favoritos:
+          <a id="marcador" class="marcador" href="#">🎵 Enviar cifra</a>
+          <span class="dica">(no celular, veja as instruções abaixo)</span></li>
+        <li>Na lista acima, clique em <b>Abrir ↗</b> na música (ou abra qualquer cifra no site).</li>
+        <li>Com a cifra aberta, clique no favorito <b>🎵 Enviar cifra</b>. A cifra chega aqui sozinha,
+          na música com o mesmo link (ou como música nova).</li>
+      </ol>
+      <details>
+        <summary>Como criar o favorito no celular ou se arrastar não funcionar</summary>
+        <ol>
+          <li>Toque em <b>Copiar código do favorito</b>.</li>
+          <li>Crie um favorito qualquer no navegador (ex.: desta página), edite, troque o nome para
+            <b>Enviar cifra</b> e cole o código no lugar do endereço.</li>
+          <li>No site da cifra, toque na barra de endereço, digite <b>Enviar cifra</b> e toque no favorito.</li>
+        </ol>
+        <button id="btn-copiar-marcador">📋 Copiar código do favorito</button>
+      </details>
+      <p class="dica">Também dá para colar a cifra direto no editor da seção 4.</p>
+      <p id="resumo-cifras" class="dica"></p>
+    </section>
+
+    <!-- 4. Editar -->
+    <section class="cartao">
+      <h2>4. Revisar e editar</h2>
+      <p class="dica">Abra uma música, altere o que precisar e clique em <b>Salvar alterações</b>.
+        Mantenha os acordes na linha de cima da letra, com espaços para alinhar.</p>
+      <div id="editores"></div>
+    </section>
+
+    <!-- 5. Baixar -->
+    <section class="cartao">
+      <h2>5. Baixar</h2>
+      <div id="sem-cifras" class="aviso">Nenhuma cifra pronta ainda. Traga ou cole as cifras acima.</div>
+      <div id="baixar" hidden>
+        <div class="linha">
+          <fieldset class="campo">
+            <legend>Layout padrão (Word, PDF e TXT)</legend>
+            <label><input type="radio" name="layout-padrao" value="1"> 1 coluna</label>
+            <label><input type="radio" name="layout-padrao" value="2" checked> 2 colunas</label>
+          </fieldset>
+          <label class="campo">Tamanho da fonte
+            <select id="fonte">
+              <option value="">Automático</option>
+              <option>8</option><option>9</option><option>10</option><option>11</option><option>12</option>
+            </select>
+          </label>
+        </div>
+        <p id="info-baixar" class="dica"></p>
+        <div class="linha botoes-baixar">
+          <button data-formato="docx">📄 Word (.docx)</button>
+          <button data-formato="pdf">📕 PDF (.pdf)</button>
+          <button data-formato="txt">📝 Texto (.txt)</button>
+          <button data-formato="xlsx">📊 Excel (.xlsx)</button>
+        </div>
+        <h3>Prévia</h3>
+        <p id="qtd-paginas" class="dica"></p>
+        <div id="previa-geral" class="previa"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="aviso-flutuante" class="toast" hidden></div>
+
+  <script src="vendor/jspdf.umd.min.js"></script>
+  <script src="vendor/docx.umd.js"></script>
+  <script src="vendor/exceljs.min.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/transpor.js"></script>
+  <script src="js/exportar.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
