@@ -58,8 +58,8 @@ em `docs/index.html`.
 
 - Tem as mesmas funções do app: lista com partes da missa, editor, troca de tom, 1 ou 2 colunas por música,
   prévia e downloads em PDF, Word, TXT e Excel (com o mesmo layout do app).
-- **Link de qualquer site:** a cifra é buscada pelo Worker da Cloudflare (`worker/`, publicado em
-  `cifras-missa.renebueno17.workers.dev`), que só responde ao site publicado. Só vale página com cifra
+- **Link de qualquer site:** a cifra é buscada pela função `cifras-busca` do Supabase (projeto `painel-ot-demo`,
+  endereço `https://tuciclxzfcbsaauphryk.supabase.co/functions/v1/cifras-busca`), que só responde ao site publicado. Só vale página com cifra
   em `<pre>` e com acordes (página só com letra é recusada).
 - **Busca pelo nome** (aba "Buscar pelo nome", ou link do CifraClub, ou link que não deu certo): o Worker procura a música
   ao mesmo tempo no **Músicas para Missa**, no **Cifras.com.br** e na **web** (DuckDuckGo, qualquer outro site),
@@ -93,7 +93,7 @@ scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
 docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
-worker/                  Cloudflare Worker que busca as cifras para a página (publicar: npx wrangler deploy)  — **depois de mudar `worker/`, publique de novo**
+worker/                  código da busca de cifras (rodou como Cloudflare Worker; hoje publicado como função do Supabase, mesmo código com `Deno.serve`)
 ```
 
 ## Sites suportados
