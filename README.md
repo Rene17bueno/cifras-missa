@@ -93,7 +93,7 @@ scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
 docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
-worker/                  código da busca de cifras (rodou como Cloudflare Worker; hoje publicado como função do Supabase, mesmo código com `Deno.serve`)
+supabase/functions/cifras-busca/  função do Supabase que busca as cifras para a página (publicada no projeto `painel-ot-demo`)
 ```
 
 ## Sites suportados
