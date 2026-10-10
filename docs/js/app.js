@@ -85,6 +85,7 @@
     $("#status-salvo").textContent = ok
       ? `✅ Salvo às ${hora} neste navegador`
       : "⚠️ Este navegador não deixou salvar (modo anônimo?). Use Salvar cópia (.json).";
+    Nuvem.agendarEnvio(rep);
   }
 
   function carregarRepertorio(nome) {
@@ -394,6 +395,7 @@
       e.target.value = rep.nome;
       return;
     }
+    Nuvem.apagar(rep.nome);
     apagar(CHAVE.prefixo + rep.nome);
     rep.nome = novo;
     salvar();
@@ -409,6 +411,7 @@
 
   $("#btn-excluir").addEventListener("click", () => {
     if (!window.confirm(`Excluir o repertório "${rep.nome}" deste navegador? Isso não pode ser desfeito.`)) return;
+    Nuvem.apagar(rep.nome);
     apagar(CHAVE.prefixo + rep.nome);
     const restantes = nomesRepertorios();
     if (!(restantes.length && carregarRepertorio(restantes[0]))) novoRepertorio(false);
@@ -793,7 +796,8 @@
   // - Link: tenta buscar a cifra direto do link (qualquer site, menos o CifraClub, que bloqueia servidores).
   // - Se não der, ou se for CifraClub, ou se só tiver o nome: procura pelo nome em vários sites
   //   (Músicas para Missa, Cifras.com.br e busca na web). A versão exata do CifraClub continua no favorito.
-  const API_BUSCA = "https://tuciclxzfcbsaauphryk.supabase.co/functions/v1/cifras-busca";
+  const API_BUSCA = Nuvem.FUNCAO_BUSCA;
+  const FATAL = /sem conexão|entre na sua conta|sessão|cota|autorizad/; // erros que valem para todas as músicas: para a busca
   const SITES_BLOQUEADOS = ["cifraclub.com.br"];
   const bloqueado = (url) => SITES_BLOQUEADOS.includes(hostDe(url));
   const automatico = (url) => !bloqueado(url);
@@ -801,13 +805,17 @@
   let buscandoAutomatico = false;
 
   async function chamarBusca(parametros) {
+    const token = await Nuvem.token();
+    if (!token) throw new Error("entre na sua conta (seção ☁️ Conta) para buscar cifras");
     let r;
     try {
-      r = await fetch(API_BUSCA + "?" + new URLSearchParams(parametros));
+      r = await fetch(API_BUSCA + "?" + new URLSearchParams(parametros), { headers: { Authorization: "Bearer " + token } });
     } catch {
       throw new Error("sem conexão com o serviço de busca");
     }
-    const dados = await r.json();
+    const dados = await r.json().catch(() => ({}));
+    if (r.status === 401) throw new Error("sessão vencida: entre de novo na seção ☁️ Conta");
+    if (r.status === 429) throw new Error("cota diária de buscas atingida; tente amanhã ou cole a cifra");
     if (!r.ok) throw new Error(dados.erro || `erro ${r.status}`);
     return dados;
   }
@@ -830,12 +838,28 @@
     delete rascunhos[m.id];
   }
 
+  /** Biblioteca primeiro (cifras já achadas antes); só depois os sites */
   async function buscarUma(m) {
+    const { titulo, artista } = consulta(m);
+    const salva = await Nuvem.daBiblioteca({ url: m.url, titulo, artista });
+    if (salva) {
+      if (salva.exata) receberCifra({ url: salva.url, titulo: salva.titulo, artista: salva.artista, cifra: salva.cifra }, { lote: true });
+      else aplicarAlternativa(m, salva, [salva.url]);
+      return;
+    }
+    await buscarNaWeb(m);
+    Nuvem.guardar(m.resultado);
+  }
+
+  async function buscarNaWeb(m) {
     if (m.url && automatico(m.url)) {
       try {
         receberCifra(await chamarBusca({ url: m.url }), { lote: true });
         return;
-      } catch { /* o link não deu certo: procura pelo nome nos outros sites */ }
+      } catch (erro) {
+        if (FATAL.test(erro.message)) throw erro;
+        /* o link não deu certo: procura pelo nome nos outros sites */
+      }
     }
     const { titulo, artista } = consulta(m);
     const { candidatos } = await chamarBusca({ titulo, artista });
@@ -848,7 +872,7 @@
         aplicarAlternativa(m, await chamarBusca({ url: c.url }), candidatos.map((x) => x.url));
         return;
       } catch (erro) {
-        if (/sem conexão/.test(erro.message)) throw erro;
+        if (FATAL.test(erro.message)) throw erro;
       }
     }
     throw new Error("achei a música, mas nenhuma opção tinha a cifra com acordes (só letra ou site fora do ar); use o favorito ou cole a cifra");
@@ -857,6 +881,7 @@
   async function buscarAutomatico() {
     const alvo = rep.musicas.filter((m) => !comCifra(m) && buscavel(m));
     if (!alvo.length || buscandoAutomatico) return;
+    if (!Nuvem.ativo()) { aviso("Entre na sua conta (seção ☁️ Conta, no topo) para buscar as cifras."); return; }
     buscandoAutomatico = true;
     let ok = 0;
     const erros = [];
@@ -868,6 +893,7 @@
       } catch (erro) {
         if (!comCifra(m)) m.resultado = { Posição: m.posicao, URL: m.url, Música: "", Artista: "", Cifra: "", Status: "Erro", Erro: erro.message };
         erros.push(m.posicao);
+        if (FATAL.test(erro.message)) { aviso("Busca interrompida: " + erro.message); salvar(); render(); break; }
       }
       salvar();
       render();
@@ -1028,6 +1054,40 @@
     const nomes = nomesRepertorios();
     if (!(nomes.length && carregarRepertorio(nomes[0]))) novoRepertorio(true);
   }
+  Nuvem.iniciar({
+    aoMudar: () => render(),
+    /** Repertórios vindos da nuvem: vale o mais novo; os que só existem aqui sobem para a nuvem */
+    aoReceber(lista) {
+      let mudou = false;
+      const remotos = new Set(lista.map((r) => r.nome));
+      for (const r of lista) {
+        const local = ler(CHAVE.prefixo + r.nome, null);
+        if (local && (r.atualizado || 0) <= (local.atualizado || 0)) continue;
+        gravar(CHAVE.prefixo + r.nome, r);
+        mudou = true;
+        if (r.nome === rep.nome) { rep = r; rascunhos = {}; }
+      }
+      for (const nome of nomesRepertorios()) if (!remotos.has(nome)) Nuvem.agendarEnvio(ler(CHAVE.prefixo + nome, null));
+      if (mudou) { render(); aviso("Repertórios atualizados com a nuvem."); }
+    },
+    aoAbrirCopia(dados) {
+      const nome = nomeLivre(dados.nome);
+      rep = { ...dados, nome, musicas: dados.musicas.map((m) => ({ ...m, id: novoId() })) };
+      rascunhos = {};
+      salvar();
+      render();
+      aviso(`Cópia aberta: ${nome}`);
+    },
+  });
+
+  $("#btn-palco").addEventListener("click", () => {
+    const itens = prontas().map((r) => ({ titulo: r.Música, artista: r.Artista, cifra: r.Cifra }));
+    if (!itens.length) { aviso("Ainda não há músicas com cifra."); return; }
+    Palco.abrir(itens, 0);
+  });
+
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* sem modo offline */ });
+
   receberDoFavorito();
   render();
 })();
