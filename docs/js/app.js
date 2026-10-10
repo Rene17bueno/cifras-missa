@@ -221,7 +221,7 @@
   }
 
   function renderPartes() {
-    for (const id of ["#um-parte", "#colar-parte"]) {
+    for (const id of ["#um-parte", "#nome-parte", "#colar-parte"]) {
       const sel = $(id);
       const atual = sel.value && sel.value !== NOVA_PARTE ? sel.value : partes[0];
       sel.innerHTML = opcoesPartes(atual);
@@ -242,13 +242,13 @@
       return;
     }
     $("#lista-musicas").innerHTML = musicas.map((m, i) => {
-      const origem = m.url ? NOMES_SITE[detectarSite(m.url)] : "Digitada à mão";
+      const origem = m.url ? NOMES_SITE[detectarSite(m.url)] : m.busca ? "Busca pelo nome" : "Digitada à mão";
       const tom = descricaoTom(m);
       return `<div class="musica" data-id="${m.id}">
         <div class="status">${icone(m)}</div>
         <select class="sel-parte-musica" data-anterior="${esc(m.posicao)}" aria-label="Parte da missa">${opcoesPartes(m.posicao)}</select>
-        <div class="info"><b>${esc(nomeMusica(m.resultado) || "Ainda sem cifra")}</b> · ${esc(origem)}${m.resultado && m.resultado.Fonte ? " · ⚠️ cifra do Músicas para Missa" : ""}${tom ? ` · 🎼 ${esc(tom)}` : ""}
-          ${m.url ? `<br><small>${esc(m.url)}</small>` : ""}</div>
+        <div class="info"><b>${esc(nomeMusica(m.resultado) || "Ainda sem cifra")}</b> · ${esc(origem)}${m.resultado && m.resultado.Fonte ? ` · ⚠️ cifra de ${esc(hostDe(m.resultado.Fonte))}` : ""}${tom ? ` · 🎼 ${esc(tom)}` : ""}
+          ${m.url ? `<br><small>${esc(m.url)}</small>` : m.busca ? `<br><small>${esc(m.busca.titulo)}${m.busca.artista ? " — " + esc(m.busca.artista) : ""}</small>` : ""}</div>
         <div class="acoes">
           ${m.url ? `<a class="botao" href="${esc(m.url)}" target="_blank" rel="opener" title="Abrir a cifra no site">Abrir ↗</a>` : ""}
           <button class="icone" data-acao="subir" title="Subir" ${i === 0 ? "disabled" : ""}>⬆️</button>
@@ -340,14 +340,13 @@
     </details>`;
   }
 
-  /** Aviso quando a cifra veio de outro site, com as outras opções encontradas */
+  /** Aviso quando a cifra veio de outro site (achada pelo nome), com as outras opções encontradas */
   function htmlFonte(r) {
     if (!r.Fonte) return "";
-    const nome = (u) => decodeURIComponent(new URL(u).pathname.split("/").filter(Boolean).pop() || u).replace(/-/g, " ");
+    const nome = (u) => `${hostDe(u)} — ${decodeURIComponent(new URL(u).pathname.split("/").filter(Boolean).slice(-2).join(" / ")).replace(/-/g, " ")}`;
     const opcoes = (r.Alternativas || []).map((u) => `<option value="${esc(u)}" ${u === r.Fonte ? "selected" : ""}>${esc(nome(u))}</option>`).join("");
-    return `<div class="aviso-alerta">⚠️ O CifraClub não deixa buscar automaticamente, então esta cifra veio do
-      <a href="${esc(r.Fonte)}" target="_blank" rel="noopener">Músicas para Missa ↗</a>. Confira se é a mesma versão.
-      Para a versão exata do CifraClub, use o favorito (seção 3).
+    return `<div class="aviso-alerta">⚠️ Esta cifra foi achada pelo nome em
+      <a href="${esc(r.Fonte)}" target="_blank" rel="noopener">${esc(hostDe(r.Fonte))} ↗</a>. Confira se é a versão que você quer.
       ${(r.Alternativas || []).length > 1 ? `<label class="campo">Outras opções encontradas
         <select data-acao="alternativa">${opcoes}</select></label>` : ""}
     </div>`;
@@ -463,7 +462,7 @@
     $("#um-url").value = "";
     salvar();
     render();
-    avisoDepoisDeAdicionar([url]);
+    buscarAutomatico();
   });
 
   $("#aba-varios").addEventListener("submit", (e) => {
@@ -478,18 +477,24 @@
     }
     $("#varios-erro").hidden = !invalidas.length;
     $("#varios-erro").textContent = invalidas.length ? "Linhas ignoradas (link inválido):\n" + invalidas.join("\n") : "";
-    const links = $("#varios-texto").value.split(/\r?\n/).map((l) => l.slice(l.lastIndexOf("|") + 1).trim()).filter(linkValido);
     if (!invalidas.length) $("#varios-texto").value = "";
     salvar();
     render();
-    avisoDepoisDeAdicionar(links);
+    buscarAutomatico();
   });
 
-  /** Músicas para Missa: busca a cifra na hora. CifraClub: lembra do favorito */
-  function avisoDepoisDeAdicionar(links) {
-    if (links.some(buscavel)) buscarAutomatico();
-    if (links.some((u) => !buscavel(u))) aviso("Música adicionada. Desse site, traga a cifra pelo favorito (seção 3) ou cole no editor.");
-  }
+  $("#aba-nome").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const titulo = $("#nome-titulo").value.trim();
+    if (!titulo) { aviso("Digite o nome da música."); return; }
+    const m = novaMusica($("#nome-parte").value, "");
+    m.busca = { titulo, artista: $("#nome-artista").value.trim() };
+    rep.musicas.push(m);
+    $("#nome-titulo").value = $("#nome-artista").value = "";
+    salvar();
+    render();
+    buscarAutomatico();
+  });
 
   $("#aba-colar").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -785,15 +790,14 @@
 
   /** Um botão por site com cifras faltando: abre uma delas para o favorito buscar todas */
   // Busca automática pelo servidor (Cloudflare Worker, pasta worker/).
-  // - Músicas para Missa: busca a cifra direto pelo link.
-  // - CifraClub: bloqueia qualquer servidor (erro 403), então procura a mesma música pelo nome
-  //   no Músicas para Missa. A versão exata do CifraClub continua disponível pelo favorito.
+  // - Link: tenta buscar a cifra direto do link (qualquer site, menos o CifraClub, que bloqueia servidores).
+  // - Se não der, ou se for CifraClub, ou se só tiver o nome: procura pelo nome em vários sites
+  //   (Músicas para Missa, Cifras.com.br e busca na web). A versão exata do CifraClub continua no favorito.
   const API_BUSCA = "https://cifras-missa.renebueno17.workers.dev/";
-  const SITES_AUTOMATICOS = ["musicasparamissa.com.br"];
   const SITES_BLOQUEADOS = ["cifraclub.com.br"];
-  const automatico = (url) => SITES_AUTOMATICOS.includes(hostDe(url));
   const bloqueado = (url) => SITES_BLOQUEADOS.includes(hostDe(url));
-  const buscavel = (url) => automatico(url) || bloqueado(url);
+  const automatico = (url) => !bloqueado(url);
+  const buscavel = (m) => m.url || m.busca;
   let buscandoAutomatico = false;
 
   async function chamarBusca(parametros) {
@@ -810,10 +814,11 @@
 
   /** Nome e artista a partir do link (ex.: cifraclub.com.br/banda-capella/gloria/) */
   function nomeDoLink(url) {
-    const partes = new URL(url).pathname.split("/").filter(Boolean);
+    const partes = new URL(url).pathname.split("/").filter((p) => p && !/^(musica|cifra|cifras|letra|letras)$/i.test(p));
     const texto = (s) => decodeURIComponent(s || "").replace(/[-_]+/g, " ");
     return { titulo: texto(partes[partes.length - 1]), artista: texto(partes[partes.length - 2]) };
   }
+  const consulta = (m) => m.busca || nomeDoLink(m.url);
 
   /** Coloca na música a cifra achada em outro site, guardando de onde veio e as outras opções */
   function aplicarAlternativa(m, d, alternativas) {
@@ -826,31 +831,31 @@
   }
 
   async function buscarUma(m) {
-    if (automatico(m.url)) {
-      receberCifra(await chamarBusca({ url: m.url }), { lote: true });
-      return;
+    if (m.url && automatico(m.url)) {
+      try {
+        receberCifra(await chamarBusca({ url: m.url }), { lote: true });
+        return;
+      } catch { /* o link não deu certo: procura pelo nome nos outros sites */ }
     }
-    const { titulo, artista } = nomeDoLink(m.url);
+    const { titulo, artista } = consulta(m);
     const { candidatos } = await chamarBusca({ titulo, artista });
     if (!candidatos.length) {
-      throw new Error("o CifraClub não deixa buscar automaticamente e a música não foi encontrada no Músicas para Missa; use o favorito ou cole a cifra");
+      throw new Error("não achei essa música nos sites pesquisados (Músicas para Missa, Cifras.com.br e busca na web); confira o nome, use o favorito ou cole a cifra");
     }
-    // Algumas músicas do Músicas para Missa só têm a letra. Tenta as opções quase tão boas quanto a melhor;
-    // as de pontuação bem menor costumam ser outra música (ex.: mesmo nome, outro artista).
-    const parecidas = candidatos.filter((c) => c.pontos >= candidatos[0].pontos - 10);
-    for (const c of parecidas) {
+    // Tenta as melhores opções, em ordem, até uma ter cifra com acordes (algumas só têm a letra)
+    for (const c of candidatos.slice(0, 6)) {
       try {
         aplicarAlternativa(m, await chamarBusca({ url: c.url }), candidatos.map((x) => x.url));
         return;
       } catch (erro) {
-        if (!/não foi encontrada/.test(erro.message)) throw erro;
+        if (/sem conexão/.test(erro.message)) throw erro;
       }
     }
-    throw new Error("a música foi encontrada no Músicas para Missa, mas lá está só com a letra (sem cifra); use o favorito ou cole a cifra");
+    throw new Error("achei a música, mas nenhuma opção tinha a cifra com acordes (só letra ou site fora do ar); use o favorito ou cole a cifra");
   }
 
   async function buscarAutomatico() {
-    const alvo = rep.musicas.filter((m) => m.url && !comCifra(m) && buscavel(m.url));
+    const alvo = rep.musicas.filter((m) => !comCifra(m) && buscavel(m));
     if (!alvo.length || buscandoAutomatico) return;
     buscandoAutomatico = true;
     let ok = 0;
@@ -870,7 +875,7 @@
     buscandoAutomatico = false;
     const outroSite = alvo.filter((m) => m.resultado && m.resultado.Fonte).length;
     mostrarProgresso(`✅ ${ok} de ${alvo.length} cifra(s) encontrada(s)`
-      + (outroSite ? ` · ${outroSite} do CifraClub vieram do Músicas para Missa (confira na seção 4)` : "")
+      + (outroSite ? ` · ${outroSite} achada(s) pelo nome em outro site (confira a versão na seção 4)` : "")
       + (erros.length ? ` · não encontradas: ${erros.join(", ")} (use o favorito ou cole a cifra)` : ""));
     render();
   }
@@ -891,15 +896,12 @@
   }
 
   function renderBusca() {
-    const faltando = rep.musicas.filter((m) => m.url && !comCifra(m));
+    const faltando = rep.musicas.filter((m) => buscavel(m) && !comCifra(m));
     const el = $("#botoes-sites");
-    if (!rep.musicas.some((m) => m.url)) { el.innerHTML = ""; }
-    else if (!faltando.length) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link já têm cifra.</p>'; }
+    if (!rep.musicas.some(buscavel)) { el.innerHTML = ""; }
+    else if (!faltando.length) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link ou nome já têm cifra.</p>'; }
     else {
-      const autom = faltando.filter((m) => buscavel(m.url)).length;
-      el.innerHTML = autom
-        ? `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>⚡ Buscar cifras automaticamente — ${autom} faltando</button>`
-        : '<p class="dica">As músicas que faltam são de outros sites: use o favorito abaixo ou cole a cifra.</p>';
+      el.innerHTML = `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>⚡ Buscar cifras automaticamente — ${faltando.length} faltando</button>`;
     }
 
     // Favorito: versão exata do CifraClub (ou de outros sites), inclusive das que vieram de outro site
