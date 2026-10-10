@@ -42,6 +42,7 @@
       <h2>1. Adicionar músicas</h2>
       <div class="abas" role="tablist">
         <button class="aba ativa" data-aba="aba-um">Um link</button>
+        <button class="aba" data-aba="aba-nome">Buscar pelo nome</button>
         <button class="aba" data-aba="aba-varios">Vários links de uma vez</button>
         <button class="aba" data-aba="aba-colar">Colar cifra</button>
       </div>
@@ -54,6 +55,16 @@
           </label>
           <button type="submit" class="primario">➕ Adicionar</button>
         </div>
+      </form>
+
+      <form id="aba-nome" class="painel-aba" hidden>
+        <div class="linha">
+          <label class="campo">Parte da missa <select class="sel-parte" id="nome-parte"></select></label>
+          <label class="campo cresce">Música <input id="nome-titulo" type="text" placeholder="Ex.: Kyrie" required></label>
+          <label class="campo cresce">Artista (opcional) <input id="nome-artista" type="text" placeholder="Ex.: Capella"></label>
+          <button type="submit" class="primario">🔎 Buscar</button>
+        </div>
+        <p class="dica">Procura em vários sites ao mesmo tempo, sem precisar de link.</p>
       </form>
 
       <form id="aba-varios" class="painel-aba" hidden>
@@ -108,9 +119,10 @@
       <h2>3. Trazer as cifras dos sites</h2>
       <p>Clique em <b>⚡ Buscar cifras automaticamente</b>. As músicas que você adiciona já são buscadas sozinhas.</p>
       <ul class="dica">
-        <li><b>Músicas para Missa:</b> a cifra vem direto do link.</li>
-        <li><b>CifraClub:</b> o CifraClub bloqueia buscas automáticas, então a mesma música é procurada pelo nome
-          no Músicas para Missa (mais de 5 mil músicas de missa). Confira a versão na seção 4.</li>
+        <li><b>Link de qualquer site:</b> a cifra é buscada direto do link. Se não der certo, a música é procurada pelo nome.</li>
+        <li><b>CifraClub</b> bloqueia buscas automáticas, então a música é procurada pelo nome em outros sites.</li>
+        <li><b>Busca pelo nome:</b> pesquisa ao mesmo tempo no Músicas para Missa, no Cifras.com.br e na web.
+          Só vale cifra com acordes. Confira a versão na seção 4.</li>
       </ul>
       <div id="botoes-sites" class="linha"></div>
       <p id="progresso-busca" class="aviso" hidden></p>
