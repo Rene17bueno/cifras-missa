@@ -58,13 +58,14 @@ em `docs/index.html`.
 
 - Tem as mesmas funções do app: lista com partes da missa, editor, troca de tom, 1 ou 2 colunas por música,
   prévia e downloads em PDF, Word, TXT e Excel (com o mesmo layout do app).
-- **Músicas para Missa:** automático. Ao adicionar o link, a cifra é buscada pelo Worker da Cloudflare
-  (`worker/`, publicado em `cifras-missa.renebueno17.workers.dev`), que só atende esse site e o CifraClub
-  e só responde ao site publicado.
-- **CifraClub:** bloqueia qualquer servidor (erro 403), então o Worker procura a mesma música **pelo nome e artista**
-  (tirados do link) no Músicas para Missa, que tem mais de 5 mil músicas de missa, e usa a melhor opção. O editor mostra
-  de onde a cifra veio e deixa trocar por outra opção encontrada. A versão exata do CifraClub continua disponível pelo
-  favorito **🎵 Enviar cifra**, que busca de uma vez todas as músicas daquele site. Também dá para colar a cifra.
+- **Link de qualquer site:** a cifra é buscada pelo Worker da Cloudflare (`worker/`, publicado em
+  `cifras-missa.renebueno17.workers.dev`), que só responde ao site publicado. Só vale página com cifra
+  em `<pre>` e com acordes (página só com letra é recusada).
+- **Busca pelo nome** (aba "Buscar pelo nome", ou link do CifraClub, ou link que não deu certo): o Worker procura a música
+  ao mesmo tempo no **Músicas para Missa**, no **Cifras.com.br** e na **web** (DuckDuckGo, qualquer outro site),
+  testa as melhores opções até achar uma com acordes e deixa trocar por outra no editor. Se uma fonte cair, as outras seguem.
+- **CifraClub:** bloqueia qualquer servidor (erro 403), por isso é sempre procurado pelo nome. A versão exata do CifraClub
+  continua disponível pelo favorito **🎵 Enviar cifra**. Também dá para colar a cifra.
 - Os repertórios ficam salvos no navegador. **Salvar cópia (.json)** faz backup e leva para outro aparelho;
   o arquivo é o mesmo formato do app do computador (abre nos dois).
 
@@ -92,14 +93,15 @@ scripts/exportar.py      geração de Word, PDF, TXT e Excel
 repertorios/             repertórios salvos pelo app (criado automaticamente)
 packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
 docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
-worker/                  Cloudflare Worker que busca as cifras para a página (publicar: npx wrangler deploy)
+worker/                  Cloudflare Worker que busca as cifras para a página (publicar: npx wrangler deploy)  — **depois de mudar `worker/`, publique de novo**
 ```
 
 ## Sites suportados
 
 - **CifraClub** (cifraclub.com.br)
 - **Músicas para Missa** (musicasparamissa.com.br)
-- Outros sites: tenta pegar o primeiro bloco `<pre>` da página
+- **Cifras.com.br** (só na página HTML, pela busca por nome)
+- Outros sites: tenta pegar o maior bloco `<pre>` da página
 
 ## Problemas comuns
 
