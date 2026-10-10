@@ -6,6 +6,8 @@
   <title>Cifras da Missa</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
   <link rel="stylesheet" href="css/estilo.css">
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#1f3a5f">
 </head>
 <body>
   <header class="topo">
@@ -14,6 +16,9 @@
   </header>
 
   <main>
+    <!-- Conta -->
+    <section id="conta" class="cartao"></section>
+
     <!-- Repertório -->
     <section class="cartao repertorio">
       <h2>📁 Repertório</h2>
@@ -33,7 +38,7 @@
         <label class="botao">📥 Abrir cópia (.json)<input id="arquivo-json" type="file" accept=".json,application/json" hidden></label>
         <span id="status-salvo" class="dica"></span>
       </div>
-      <p class="dica">Tudo é salvo automaticamente <b>neste navegador</b>. Use <b>Salvar cópia</b> para fazer backup
+      <p class="dica">Tudo é salvo automaticamente <b>neste navegador</b> (e na nuvem, se você entrou na conta). Use <b>Salvar cópia</b> para fazer backup
         ou levar o repertório para outro aparelho (o arquivo também abre no app do computador).</p>
     </section>
 
@@ -184,6 +189,7 @@
           <button data-formato="txt">📝 Texto (.txt)</button>
           <button data-formato="xlsx">📊 Excel (.xlsx)</button>
         </div>
+        <div class="linha"><button id="btn-palco">🎤 Modo palco (tela cheia, rolagem automática)</button></div>
         <h3>Prévia</h3>
         <p id="qtd-paginas" class="dica"></p>
         <div id="previa-geral" class="previa"></div>
@@ -199,6 +205,8 @@
   <script src="js/layout.js"></script>
   <script src="js/transpor.js"></script>
   <script src="js/exportar.js"></script>
+  <script src="js/nuvem.js"></script>
+  <script src="js/palco.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
