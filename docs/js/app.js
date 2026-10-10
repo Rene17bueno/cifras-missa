@@ -789,11 +789,11 @@
   }
 
   /** Um botão por site com cifras faltando: abre uma delas para o favorito buscar todas */
-  // Busca automática pelo servidor (Cloudflare Worker, pasta worker/).
+  // Busca automática pelo servidor (função cifras-busca do Supabase, código-base em worker/cifra.js).
   // - Link: tenta buscar a cifra direto do link (qualquer site, menos o CifraClub, que bloqueia servidores).
   // - Se não der, ou se for CifraClub, ou se só tiver o nome: procura pelo nome em vários sites
   //   (Músicas para Missa, Cifras.com.br e busca na web). A versão exata do CifraClub continua no favorito.
-  const API_BUSCA = "https://cifras-missa.renebueno17.workers.dev/";
+  const API_BUSCA = "https://tuciclxzfcbsaauphryk.supabase.co/functions/v1/cifras-busca";
   const SITES_BLOQUEADOS = ["cifraclub.com.br"];
   const bloqueado = (url) => SITES_BLOQUEADOS.includes(hostDe(url));
   const automatico = (url) => !bloqueado(url);
