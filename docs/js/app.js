@@ -789,7 +789,7 @@
   }
 
   /** Um botão por site com cifras faltando: abre uma delas para o favorito buscar todas */
-  // Busca automática pelo servidor (função cifras-busca do Supabase, código-base em worker/cifra.js).
+  // Busca automática pelo servidor (função cifras-busca do Supabase, código em supabase/functions/cifras-busca).
   // - Link: tenta buscar a cifra direto do link (qualquer site, menos o CifraClub, que bloqueia servidores).
   // - Se não der, ou se for CifraClub, ou se só tiver o nome: procura pelo nome em vários sites
   //   (Músicas para Missa, Cifras.com.br e busca na web). A versão exata do CifraClub continua no favorito.
