@@ -617,6 +617,14 @@
   // Grupo de Oração: etapas do grupo (tabela cifras_goc, coluna etapa) e artista
   const ETAPAS = ["Animação", "Condução", "Espírito Santo", "Adoração", "Final", "Outras"];
   let goc = null;
+  let gocSalvas = new Set(); // cifras do cifras.com.br já guardadas no Supabase (tabela cifras_goc_cifras)
+  const URL_GOC = /^https:\/\/www\.cifras\.com\.br\/cifra\/[a-z0-9-]+\/[a-z0-9-]+$/;
+  function guardarGoc(url, titulo, artista, cifra) {
+    if (!URL_GOC.test(url) || cifra.length < 20 || cifra.length > 30000) return;
+    gocSalvas.add(url);
+    Nuvem.rest("cifras_goc_cifras?on_conflict=url", { metodo: "POST", prefer: "resolution=merge-duplicates,return=minimal",
+      corpo: [{ url, titulo: titulo.slice(0, 200), artista: artista.slice(0, 200), cifra, atualizado: new Date().toISOString() }] }).catch(() => {});
+  }
   const statusGoc = (t) => { $("#goc-status").hidden = !t; $("#goc-status").textContent = t || ""; };
 
   async function carregarGoc() {
@@ -625,20 +633,21 @@
     try {
       goc = [];
       for (let i = 0; ; i += 1000) {
-        const lote = await Nuvem.rest(`cifras_goc?select=url,pasta,titulo,etapa&order=titulo&limit=1000&offset=${i}`);
+        const lote = await Nuvem.rest(`cifras_goc?select=url,pasta,titulo,etapa,url_mpm&order=titulo&limit=1000&offset=${i}`);
         goc.push(...lote);
         if (lote.length < 1000) break;
       }
       const conta = (campo, nome) => goc.filter((m) => m[campo] === nome).length;
       $("#goc-etapa").innerHTML = `<option value="">Todas (${goc.length})</option>` + ETAPAS.map((n) => `<option value="${esc(n)}">${esc(n)} (${conta("etapa", n)})</option>`).join("");
       $("#goc-pasta").innerHTML = `<option value="">Todos</option>` + [...new Set(goc.map((m) => m.pasta))].sort((a, b) => a.localeCompare(b, "pt-BR")).map((n) => `<option value="${esc(n)}">${esc(n)} (${conta("pasta", n)})</option>`).join("");
+      try { gocSalvas = new Set((await Nuvem.rest("cifras_goc_cifras?select=url&limit=1000")).map((l) => l.url)); } catch { /* sem cifras guardadas */ }
       statusGoc("");
     } catch (erro) { statusGoc("Não consegui carregar: " + erro.message); goc = null; return; }
     listarGoc();
     renderLateralGoc();
   }
 
-  const linhaGoc = (m) => `<li><button type="button" data-goc="${esc(m.url)}" data-titulo="${esc(m.titulo)}" data-artista="${esc(m.pasta)}" data-etapa="${esc(m.etapa || "")}" title="Levar para Colar cifra">➕</button> <a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" title="Abrir a cifra no site">↗</a> ${esc(m.titulo)} <small>${esc(m.pasta)}</small></li>`;
+  const linhaGoc = (m) => `<li><button type="button" data-goc="${esc(m.url)}" data-titulo="${esc(m.titulo)}" data-artista="${esc(m.pasta)}" data-etapa="${esc(m.etapa || "")}" data-mpm="${esc(m.url_mpm || "")}" title="${m.url_mpm || gocSalvas.has(m.url) ? "Adicionar ao repertório com a cifra" : "Levar para Colar cifra"}">➕</button> <a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" title="Abrir a cifra no site">↗</a> ${esc(m.titulo)} <small>${esc(m.pasta)}</small>${m.url_mpm || gocSalvas.has(m.url) ? ' <small title="Cifra disponível">✓</small>' : ""}</li>`;
 
   function listarGoc() {
     const etapa = $("#goc-etapa").value, pasta = $("#goc-pasta").value, filtro = comparavel($("#goc-filtro").value);
@@ -693,14 +702,30 @@
     if (r) { const i = +r.dataset.sorteio; sugestao[i] = sortear(SEQUENCIA[i], sugestao.filter(Boolean).map((m) => m.url)) || sugestao[i]; renderSugestao(); return; }
     levarGoc(e);
   });
-  function levarGoc(e) {
+  async function levarGoc(e) {
     const b = e.target.closest("button[data-goc]");
     if (!b) return;
+    const parte = parteDaLista(b.dataset.etapa || "Outra");
+    const adicionar = (m) => { rep.musicas.push(m); verDepois(m); b.disabled = true; salvar(); render(); };
+    if (b.dataset.mpm) { adicionar(novaMusica(parte, b.dataset.mpm)); buscarAutomatico(); return; } // mesma música no Músicas para Missa
+    if (gocSalvas.has(b.dataset.goc)) {
+      try {
+        const [l] = await Nuvem.rest(`cifras_goc_cifras?select=titulo,artista,cifra&url=eq.${encodeURIComponent(b.dataset.goc)}`);
+        if (l) {
+          const m = novaMusica(parte, b.dataset.goc), textos = { Música: l.titulo, Artista: l.artista, Cifra: l.cifra };
+          m.resultado = { ...textos, Posição: m.posicao, URL: m.url, Status: "OK", Erro: "", Original: textos, Editado: false };
+          adicionar(m);
+          aviso("Música adicionada.");
+          return;
+        }
+      } catch { /* cai no Colar cifra */ }
+    }
     $("#colar-titulo").value = b.dataset.titulo;
     $("#colar-artista").value = b.dataset.artista;
     $("#colar-url").value = b.dataset.goc;
     document.querySelector('.aba[data-aba="aba-colar"]').click();
-    if (b.dataset.etapa) { const parte = parteDaLista(b.dataset.etapa); renderPartes(); $("#colar-parte").value = parte; }
+    renderPartes();
+    $("#colar-parte").value = parte;
     $("#colar-cifra").focus();
   }
   $("#goc-lista").addEventListener("click", levarGoc);
@@ -763,6 +788,7 @@
     const textos = { Música: $("#colar-titulo").value.trim(), Artista: $("#colar-artista").value.trim(), Cifra: cifra };
     m.resultado = { ...textos, Posição: m.posicao, URL: url, Status: "OK", Erro: "", Original: textos, Editado: false };
     rep.musicas.push(m);
+    guardarGoc(url, textos.Música, textos.Artista, cifra);
     for (const id of ["#colar-titulo", "#colar-artista", "#colar-url", "#colar-cifra"]) $(id).value = "";
     salvar();
     render();
@@ -987,7 +1013,7 @@
       var p = doc.querySelector("pre");
       if (!p || p.textContent.trim().length < 20) { return null; }
       var t = doc.title.split(" - "), h = doc.querySelector("h1");
-      return { url: url, titulo: (h ? h.textContent : doc.title).trim(), artista: /cifraclub/.test(location.hostname) && t.length >= 3 ? t[1].trim() : "", cifra: p.textContent };
+      return { url: url, titulo: (h ? h.textContent : doc.title).trim(), artista: /cifraclub/.test(location.hostname) && t.length >= 3 ? t[1].trim() : /cifras[.]com[.]br/.test(location.hostname) && t.length >= 2 ? t[1].split(" | ")[0].trim() : "", cifra: p.textContent };
     };
     var enviar = function (m) { w.postMessage(m, ORIGEM); };
     var conectado = false;
@@ -1232,6 +1258,7 @@
     const textos = { Música: (d.titulo || "").trim(), Artista: (d.artista || "").trim(), Cifra: Layout.limparCifra(d.cifra || "") };
     const resultado = { ...textos, URL: d.url, Status: "OK", Erro: "", Original: textos, Editado: false };
     const alvo = rep.musicas.find((m) => m.url && normalizarUrl(m.url) === normalizarUrl(d.url));
+    guardarGoc(d.url, textos.Música, textos.Artista, textos.Cifra);
     if (alvo) {
       if (alvo.resultado && alvo.resultado.Editado && (!atual
           || !window.confirm(`"${alvo.posicao}" tem edições. Substituir pela cifra do site?`))) return null;
