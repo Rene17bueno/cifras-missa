@@ -672,6 +672,7 @@
       : "";
   }
 
+  const baixadas = (etapa) => goc.filter((m) => m.etapa === etapa && gocSalvas.has(m.url)).length;
   function renderLateralGoc() {
     const el = $("#lat-goc-lista");
     if (!goc) { el.innerHTML = '<p class="dica">Abra a aba "Grupo de Oração" em Adicionar músicas para carregar.</p>'; return; }
@@ -681,7 +682,7 @@
       const itens = goc.filter((m) => m.etapa === etapa && (!filtro || comparavel(m.titulo).includes(filtro)));
       if (!itens.length) return "";
       const aberta = filtro || abertas.has(etapa);
-      return `<details data-etapa="${esc(etapa)}" ${aberta ? "open" : ""}><summary>🙏 ${esc(etapa)} (${itens.length})</summary>${aberta ? `<ul class="catalogo">${itens.slice(0, 100).map(linhaGoc).join("")}</ul>` : ""}</details>`;
+      return `<details data-etapa="${esc(etapa)}" ${aberta ? "open" : ""}><summary>🙏 ${esc(etapa)} (${itens.length})${baixadas(etapa) ? ` <small>✓${baixadas(etapa)}</small>` : ""}<button type="button" class="lat-baixar" data-baixar-goc="${esc(etapa)}" title="Baixar as cifras que faltam desta etapa">⬇️</button></summary>${aberta ? `<ul class="catalogo">${itens.slice(0, 100).map(linhaGoc).join("")}</ul>` : ""}</details>`;
     }).join("") || '<p class="dica">Nenhuma música encontrada.</p>';
   }
 
@@ -721,7 +722,6 @@
     if (!b) return;
     const parte = parteDaLista(b.dataset.etapa || "Outra");
     const adicionar = (m) => { rep.musicas.push(m); verDepois(m); b.disabled = true; salvar(); render(); };
-    if (b.dataset.mpm) { adicionar(novaMusica(parte, b.dataset.mpm)); buscarAutomatico(); return; } // mesma música no Músicas para Missa
     if (gocSalvas.has(b.dataset.goc)) {
       try {
         const [l] = await Nuvem.rest(`cifras_goc_cifras?select=titulo,artista,cifra&url=eq.${encodeURIComponent(b.dataset.goc)}`);
@@ -734,6 +734,7 @@
         }
       } catch { /* cai no Colar cifra */ }
     }
+    if (b.dataset.mpm) { adicionar(novaMusica(parte, b.dataset.mpm)); buscarAutomatico(); return; } // mesma música no Músicas para Missa
     $("#colar-titulo").value = b.dataset.titulo;
     $("#colar-artista").value = b.dataset.artista;
     $("#colar-url").value = b.dataset.goc;
@@ -742,6 +743,50 @@
     $("#colar-parte").value = parte;
     $("#colar-cifra").focus();
   }
+  // Baixa as cifras que faltam de uma etapa do Grupo de Oração (mesmo processo das pastas da Missa)
+  async function baixarGoc(etapa) {
+    if (baixando) { aviso("Já há um download em andamento."); return; }
+    const faltam = (goc || []).filter((m) => m.etapa === etapa && !gocSalvas.has(m.url));
+    if (!faltam.length) { aviso(`Todas as cifras de "${etapa}" já estão guardadas.`); return; }
+    if (!window.confirm(`Baixar ${faltam.length} cifra(s) de "${etapa}" e guardar no Supabase?\nLeva uns ${Math.ceil(faltam.length * 1.2 / 60)} min e usa ${faltam.length} da cota diária de buscas (2000 por dia, somando todos).`)) return;
+    baixando = true; parar = false;
+    const st = $("#lat-goc-status"); st.hidden = false;
+    let feitas = 0, falhas = 0, salvas = 0, pendentes = [], i = 0;
+    const gravarLote = async () => {
+      const lote = pendentes; pendentes = [];
+      if (!lote.length) return;
+      try {
+        await Nuvem.rest("cifras_goc_cifras?on_conflict=url", { metodo: "POST", corpo: lote, prefer: "resolution=merge-duplicates,return=minimal" });
+        lote.forEach((l) => gocSalvas.add(l.url)); salvas += lote.length;
+      } catch { falhas += lote.length; }
+    };
+    const trabalhador = async () => {
+      while (i < faltam.length && !parar) {
+        const m = faltam[i++];
+        try {
+          const d = await chamarFuncao({ url: m.url_mpm || m.url });
+          if (URL_GOC.test(m.url) && d.cifra.length >= 20) pendentes.push({ url: m.url, titulo: (d.titulo || m.titulo).slice(0, 200), artista: (d.artista || m.pasta).slice(0, 200), cifra: d.cifra.slice(0, 30000), atualizado: new Date().toISOString() });
+        } catch (erro) {
+          falhas += 1;
+          if (/cota/.test(erro.message)) { parar = true; aviso("Download interrompido: " + erro.message); }
+        }
+        feitas += 1;
+        st.firstElementChild.textContent = `⬇️ ${etapa}: ${feitas} de ${faltam.length}${falhas ? ` · ${falhas} sem cifra` : ""}`;
+        if (pendentes.length >= 10) await gravarLote();
+        await new Promise((ok) => setTimeout(ok, 600)); // ponytail: pausa fixa para não sobrecarregar o site de origem
+      }
+    };
+    await Promise.all([trabalhador(), trabalhador()]);
+    await gravarLote();
+    baixando = false; st.hidden = true;
+    renderLateralGoc(); listarGoc();
+    aviso(`${etapa}: ${salvas} cifra(s) guardada(s)${falhas ? `; ${falhas} sem cifra (só letra, fora do ar ou cota)` : ""}.`);
+  }
+  $("#lat-goc-lista").addEventListener("click", (e) => {
+    const bx = e.target.closest("button[data-baixar-goc]");
+    if (bx) { e.preventDefault(); baixarGoc(bx.dataset.baixarGoc); }
+  });
+  $("#lat-goc-parar").addEventListener("click", () => { parar = true; });
   $("#goc-lista").addEventListener("click", levarGoc);
   $("#lat-goc-lista").addEventListener("click", levarGoc);
 
