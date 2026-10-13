@@ -240,7 +240,7 @@
   }
 
   function renderPartes() {
-    for (const id of ["#um-parte", "#nome-parte", "#colar-parte"]) {
+    for (const id of ["#um-parte", "#nome-parte", "#art-parte", "#colar-parte"]) {
       const sel = $(id);
       const atual = sel.value && sel.value !== NOVA_PARTE ? sel.value : partes[0];
       sel.innerHTML = opcoesPartes(atual);
