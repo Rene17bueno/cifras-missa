@@ -21,7 +21,7 @@
     <div class="lat-abas">
       <button type="button" class="lat-aba ativa" data-lat="lat-pastas">⛪ Missa</button>
       <button type="button" class="lat-aba" data-lat="lat-goc">🙏 Oração</button>
-      <button type="button" class="lat-aba" data-lat="lat-reps">🔎 Repertórios</button>
+      <button type="button" class="lat-aba" data-lat="lat-reps" title="Repertórios">🔎 Reps</button>
     </div>
     <div id="lat-pastas" class="lat-painel">
       <input id="lat-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música">
@@ -126,6 +126,8 @@
           <label class="campo cresce">Filtrar pelo nome <input id="goc-filtro" type="search" placeholder="Ex.: rendo, abba"></label>
         </div>
         <p class="dica">Músicas de grupo de oração por artista/comunidade (fonte: cifras.com.br). ↗ abre a cifra no site; ➕ leva título e link para "Colar cifra", onde você cola a cifra copiada.</p>
+        <p><button type="button" id="goc-sugerir">💡 Sugerir sequência</button></p>
+        <div id="goc-sug"></div>
         <p id="goc-status" class="aviso" hidden></p>
         <div id="goc-lista"></div>
       </div>
