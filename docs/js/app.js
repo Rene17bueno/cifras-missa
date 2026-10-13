@@ -473,6 +473,7 @@
     document.querySelectorAll(".aba").forEach((a) => a.classList.toggle("ativa", a === aba));
     document.querySelectorAll(".painel-aba").forEach((p) => { p.hidden = p.id !== aba.dataset.aba; });
     if (aba.dataset.aba === "aba-sugestoes") carregarMissas();
+    if (aba.dataset.aba === "aba-artista") renderRobo();
     if (aba.dataset.aba === "aba-catalogo") carregarCatalogo();
     if (aba.dataset.aba === "aba-goc") carregarGoc();
   }));
@@ -790,6 +791,90 @@
     render();
     buscarAutomatico();
   });
+
+  // ---------------------------------------------------------------- Artistas e robô de cifras
+  // robo = {ligado, seguidos:[artista], novas:[{titulo,artista,url}], vistas:[url], ultima:ms}
+  const CHAVE_ROBO = "cifras.robo";
+  const robo = { ligado: false, seguidos: [], novas: [], vistas: [], ultima: 0, ...ler(CHAVE_ROBO, {}) };
+  const vistas = new Set(robo.vistas);
+  const gravarRobo = () => gravar(CHAVE_ROBO, { ...robo, vistas: [...vistas].slice(-3000) });
+  const maiuscula = (s) => s.replace(/(^|\s)(\p{L})/gu, (_, e, c) => e + c.toUpperCase());
+  const linhaArtista = (i) => `<li><button type="button" data-url="${esc(i.url)}" title="Adicionar à lista">+</button> ${esc(maiuscula(i.titulo))} <small>${esc(maiuscula(i.artista))}</small>${robo.novas.some((n) => n.url === i.url) ? ` <button type="button" data-ignorar="${esc(i.url)}" title="Não mostrar mais">✕</button>` : ""}</li>`;
+
+  function renderRobo() {
+    $("#robo-liga").checked = robo.ligado;
+    $("#robo-seguidos").innerHTML = robo.seguidos.map((a) => `<span class="badge">${esc(a)} <button type="button" class="icone" data-tirar="${esc(a)}" aria-label="Deixar de seguir">✕</button></span>`).join(" ")
+      || '<p class="dica">Nenhum artista seguido: digite o nome acima e clique em Seguir.</p>';
+    $("#robo-estado").textContent = robo.ultima ? "Última verificação: " + new Date(robo.ultima).toLocaleString("pt-BR") : "Ainda não rodou.";
+    $("#robo-novas").innerHTML = robo.novas.length
+      ? `<h4>${robo.novas.length} cifras novas para aprovar</h4><button type="button" data-ignorar="*">Ignorar todas</button><ul class="sugestoes">${robo.novas.map(linhaArtista).join("")}</ul>` : "";
+  }
+
+  const musicasDe = async (artista) => (await chamarBusca({ artista })).musicas;
+
+  $("#aba-artista").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const alvo = $("#art-lista");
+    alvo.textContent = "Buscando…";
+    try {
+      const l = await musicasDe($("#art-nome").value.trim());
+      alvo.innerHTML = l.length ? `<ul class="sugestoes">${l.map(linhaArtista).join("")}</ul>` : "Nenhuma cifra encontrada para esse artista.";
+    } catch (erro) {
+      alvo.textContent = "Não consegui buscar: " + erro.message;
+    }
+  });
+
+  let roboRodando = false;
+  async function rodarRobo() {
+    if (roboRodando || !robo.seguidos.length) return;
+    roboRodando = true;
+    $("#robo-estado").textContent = "Verificando…";
+    for (const a of robo.seguidos) {
+      try {
+        for (const i of await musicasDe(a)) if (!vistas.has(i.url) && !robo.novas.some((n) => n.url === i.url)) robo.novas.push(i);
+      } catch (erro) {
+        if (FATAL.test(erro.message)) { aviso("Robô parou: " + erro.message); break; }
+      }
+    }
+    robo.ultima = Date.now();
+    roboRodando = false;
+    gravarRobo();
+    renderRobo();
+    if (robo.novas.length) aviso(`Robô: ${robo.novas.length} cifras novas em Adicionar músicas > Artistas e robô.`);
+  }
+
+  $("#robo-agora").addEventListener("click", rodarRobo);
+  $("#robo-liga").addEventListener("change", (e) => { robo.ligado = e.target.checked; gravarRobo(); if (robo.ligado) rodarRobo(); });
+  $("#art-seguir").addEventListener("click", () => {
+    const nome = $("#art-nome").value.trim();
+    if (!nome || robo.seguidos.length >= 10 || robo.seguidos.some((a) => comparavel(a) === comparavel(nome))) { aviso("Informe um artista novo (máximo 10 seguidos)."); return; }
+    robo.seguidos.push(nome);
+    gravarRobo();
+    renderRobo();
+  });
+  $("#aba-artista").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-url],button[data-ignorar],button[data-tirar]");
+    if (!b) return;
+    if (b.dataset.tirar) robo.seguidos = robo.seguidos.filter((a) => a !== b.dataset.tirar);
+    else {
+      const urls = b.dataset.ignorar === "*" ? robo.novas.map((n) => n.url) : [b.dataset.url || b.dataset.ignorar];
+      urls.forEach((u) => vistas.add(u));
+      robo.novas = robo.novas.filter((n) => !vistas.has(n.url));
+      if (b.dataset.url) {
+        const m = novaMusica(parteDaLista($("#art-parte").value), b.dataset.url);
+        rep.musicas.push(m);
+        verDepois(m);
+        salvar();
+        render();
+        buscarAutomatico();
+      }
+    }
+    gravarRobo();
+    renderRobo();
+  });
+  renderRobo();
+  setTimeout(() => { if (robo.ligado && Date.now() - robo.ultima > 6 * 36e5) rodarRobo(); }, 4000);
+  setInterval(() => { if (robo.ligado && Date.now() - robo.ultima > 6 * 36e5) rodarRobo(); }, 30 * 6e4);
 
   $("#aba-colar").addEventListener("submit", (e) => {
     e.preventDefault();
