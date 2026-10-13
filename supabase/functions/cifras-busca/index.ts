@@ -3,6 +3,8 @@
  * Busca de cifras para a página HTML (Supabase Edge Function "cifras-busca", Deno).
  * GET /?url=<link da cifra>  ->  {url, titulo, artista, cifra}  ou  {erro}
  * GET /?titulo=<nome>&artista=<nome>  ->  {candidatos: [{url, fonte, pontos}], avisos}
+ * GET /?missas=1  ->  {missas: [{slug, titulo, data}]}   (próximas missas do Músicas para Missa)
+ * GET /?sugestoes=<slug>  ->  {partes: [{parte, itens: [{titulo, url}]}]}
  * Protegida: exige usuário logado (JWT "authenticated"), e-mail na tabela cifras_permitidos,
  * Origin do site publicado e cota diária por usuário (tabela cifras_uso). Assim não vira um proxy aberto.
  */
@@ -223,6 +225,51 @@ async function procurar(titulo, artista) {
   return [{ candidatos, avisos }, 200];
 }
 
+// ---------------------------------------------------------------- Sugestões do Músicas para Missa por domingo/festa
+const SITE_MPM = "https://musicasparamissa.com.br";
+// Título da seção no site -> parte da missa usada na página
+const PARTES_MPM = [
+  ["canto de abertura", "Entrada"], ["ato penitencial", "Ato penitencial"], ["hino de louvor", "Glória"],
+  ["salmo responsorial", "Salmo"], ["aclamacao", "Aclamação"], ["apresentacao das oferendas", "Ofertório"],
+  ["santo", "Santo"], ["cordeiro", "Cordeiro"], ["pos comunhao", "Ação de graças"], ["comunhao", "Comunhão"], ["final", "Final"],
+];
+const semTags = (h) => h.replace(/<[^>]+>/g, " ").replace(/&amp;/g, "&").replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(+n)).replace(/&quot;/g, '"').replace(/\s+/g, " ").trim();
+
+/** Próximas missas com sugestões (a página inicial do site lista as próximas) */
+async function listarMissas() {
+  const r = await pegar(SITE_MPM + "/");
+  if (!r.ok) return [{ erro: `Músicas para Missa (erro ${r.status})` }, 502];
+  const html = await r.text();
+  const missas = [];
+  for (const m of html.matchAll(/href="\/sugestoes-para\/([a-z0-9-]+)\/"[^>]*>\s*([^<]{3,120}?)\s*</g)) {
+    if (!missas.some((x) => x.slug === m[1])) missas.push({ slug: m[1], titulo: semTags(m[2]) });
+  }
+  const datas = html.match(/\d\d\/\d\d\/\d{4}/g) || [];
+  if (datas.length === missas.length) missas.forEach((x, i) => { x.data = datas[i]; });
+  return [{ missas }, 200];
+}
+
+/** Sugestões de uma missa, já separadas pelas partes da página */
+async function sugestoesDaMissa(slug) {
+  if (!/^[a-z0-9-]{3,100}$/.test(slug)) return [{ erro: "Missa inválida." }, 400];
+  const r = await pegar(`${SITE_MPM}/sugestoes-para/${slug}/`);
+  if (!r.ok) return [{ erro: r.status === 404 ? "Missa não encontrada." : `Músicas para Missa (erro ${r.status})` }, r.status === 404 ? 404 : 502];
+  const html = await r.text();
+  const titulos = new Map([...html.matchAll(/<a[^>]*href="#(accorside-[^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => [m[1], semTags(m[2])]));
+  const lugares = [...titulos.keys()].map((id) => [id, html.indexOf(`id="${id}"`)]).filter(([, i]) => i >= 0).sort((a, b) => a[1] - b[1]);
+  const partes = [];
+  lugares.forEach(([id, ini], k) => {
+    const nome = palavras(titulos.get(id)).join(" ");
+    const par = PARTES_MPM.find(([chave]) => nome.startsWith(chave));
+    if (!par) return;
+    const trecho = html.slice(ini, lugares[k + 1]?.[1] ?? html.length);
+    const itens = [...trecho.matchAll(/<a[^>]*href="(\/musica\/[a-z0-9-]+\/)"[^>]*>([\s\S]*?)<\/a>/g)]
+      .map((m) => ({ titulo: semTags(m[2]), url: SITE_MPM + m[1] })).filter((i) => i.titulo).slice(0, 10);
+    if (itens.length) partes.push({ parte: par[1], itens });
+  });
+  return [{ partes }, 200];
+}
+
 Deno.serve(async (request) => {
   const origem = request.headers.get("Origin") || "";
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(origem) });
@@ -239,8 +286,9 @@ Deno.serve(async (request) => {
   }
 
   const parametros = new URL(request.url).searchParams;
-  const [dados, status] = parametros.has("titulo")
-    ? await procurar(parametros.get("titulo") || "", parametros.get("artista") || "")
+  const [dados, status] = parametros.has("missas") ? await listarMissas()
+    : parametros.has("sugestoes") ? await sugestoesDaMissa(parametros.get("sugestoes") || "")
+    : parametros.has("titulo") ? await procurar(parametros.get("titulo") || "", parametros.get("artista") || "")
     : await buscar(parametros.get("url") || "");
   return resposta(dados, status, origem);
 });
