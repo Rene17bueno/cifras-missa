@@ -461,6 +461,7 @@
     document.querySelectorAll(".painel-aba").forEach((p) => { p.hidden = p.id !== aba.dataset.aba; });
     if (aba.dataset.aba === "aba-sugestoes") carregarMissas();
     if (aba.dataset.aba === "aba-catalogo") carregarCatalogo();
+    if (aba.dataset.aba === "aba-goc") carregarGoc();
   }));
 
   document.querySelectorAll("select.sel-parte").forEach((sel) => sel.addEventListener("change", () => {
@@ -611,6 +612,49 @@
   $("#cat-lista").addEventListener("click", (e) => {
     const botao = e.target.closest("button[data-url]");
     if (botao) adicionarDoCatalogo(botao);
+  });
+
+  // Grupo de Oração: lista por artista/comunidade (tabela cifras_goc)
+  let goc = null;
+  const statusGoc = (t) => { $("#goc-status").hidden = !t; $("#goc-status").textContent = t || ""; };
+
+  async function carregarGoc() {
+    if (goc) return;
+    statusGoc("Carregando…");
+    try {
+      const linhas = [];
+      for (let i = 0; ; i += 1000) {
+        const lote = await Nuvem.rest(`cifras_goc?select=url,pasta,titulo&order=titulo&limit=1000&offset=${i}`);
+        linhas.push(...lote);
+        if (lote.length < 1000) break;
+      }
+      goc = {};
+      for (const l of linhas) (goc[l.pasta] ||= []).push(l);
+      $("#goc-pasta").innerHTML = Object.keys(goc).sort((a, b) => a.localeCompare(b, "pt-BR")).map((n) => `<option value="${esc(n)}">${esc(n)} (${goc[n].length})</option>`).join("");
+      statusGoc("");
+    } catch (erro) { statusGoc("Não consegui carregar: " + erro.message); return; }
+    listarGoc();
+  }
+
+  function listarGoc() {
+    const pasta = $("#goc-pasta").value, filtro = comparavel($("#goc-filtro").value);
+    const todas = ((goc || {})[pasta] || []).filter((m) => !filtro || comparavel(m.titulo).includes(filtro));
+    $("#goc-lista").innerHTML = todas.length
+      ? `<ul class="catalogo">` + todas.slice(0, 100).map((m) => `<li><button type="button" data-goc="${esc(m.url)}" data-titulo="${esc(m.titulo)}" data-artista="${esc(pasta)}" title="Levar para Colar cifra">➕</button> <a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" title="Abrir a cifra no site">↗</a> ${esc(m.titulo)}</li>`).join("") + "</ul>"
+        + (todas.length > 100 ? `<p class="dica">Mostrando 100 de ${todas.length}; use o filtro.</p>` : "")
+      : "";
+  }
+
+  $("#goc-pasta").addEventListener("change", listarGoc);
+  $("#goc-filtro").addEventListener("input", listarGoc);
+  $("#goc-lista").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-goc]");
+    if (!b) return;
+    $("#colar-titulo").value = b.dataset.titulo;
+    $("#colar-artista").value = b.dataset.artista;
+    $("#colar-url").value = b.dataset.goc;
+    document.querySelector('.aba[data-aba="aba-colar"]').click();
+    $("#colar-cifra").focus();
   });
 
   // Sugestões do domingo (Músicas para Missa, pela função de busca)
