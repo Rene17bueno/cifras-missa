@@ -72,3 +72,69 @@ body, body.lat-recolhida { padding-left: 0 !important; }
 /* Prévia grande na janela da música: uma página por linha */
 dialog#dlg-musica .previa { grid-template-columns: 1fr; justify-items: center; }
 dialog#dlg-musica .previa .pagina { width: min(100%, 860px); height: auto; }
+
+/* ========== Sistema de design (camada de acabamento) ==========
+   Tokens: espaço em múltiplos de 4px, raios 10/14/20, sombras em 3 níveis, foco visível, alvo de toque >= 40px. */
+:root {
+  --sp-1: 4px; --sp-2: 8px; --sp-3: 12px; --sp-4: 16px; --sp-5: 24px; --sp-6: 32px;
+  --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
+  --sombra-1: 0 1px 2px rgba(20,38,66,.06);
+  --sombra-2: 0 2px 4px rgba(20,38,66,.05), 0 8px 24px rgba(20,38,66,.08);
+  --sombra-3: 0 12px 40px rgba(20,38,66,.28);
+  --fundo: #f2f4f8;
+}
+body { background: radial-gradient(1200px 400px at 50% -120px, #e6ecf7 0%, transparent 70%), var(--fundo); letter-spacing: .005em; }
+
+/* Cabeçalho com a imagem da capela: camada azul garante contraste do texto (AA) */
+.topo {
+  position: relative; isolation: isolate; min-height: 168px; display: flex; align-items: flex-end;
+  padding: var(--sp-6) var(--sp-4) var(--sp-5);
+  background:
+    linear-gradient(100deg, rgba(16,32,58,.95) 0%, rgba(24,46,80,.86) 48%, rgba(31,58,95,.55) 100%),
+    url("../img/igreja.webp") center 38% / cover no-repeat, var(--marinho);
+  border-bottom: 3px solid var(--ouro);
+}
+.topo-in { width: 100%; }
+.topo h1 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); line-height: 1.1; text-shadow: 0 2px 12px rgba(0,0,0,.35); }
+.topo .sub { color: #e4ebf7; font-size: 1.02rem; line-height: 1.5; margin: var(--sp-2) 0 0; max-width: 56ch; text-shadow: 0 1px 8px rgba(0,0,0,.35); }
+
+/* Menu: abas em pílula, sticky com vidro fosco */
+.menu { background: rgba(255,255,255,.88); -webkit-backdrop-filter: saturate(1.4) blur(10px); backdrop-filter: saturate(1.4) blur(10px); box-shadow: var(--sombra-2); border-bottom: 1px solid var(--borda); }
+.menu-in { padding: 0 var(--sp-3); gap: var(--sp-1); }
+.menu-item { padding: 14px 14px; font-size: .95rem; letter-spacing: .01em; min-height: 48px; }
+.menu-item.ativa { color: var(--marinho); border-bottom-width: 3px; background: linear-gradient(180deg, transparent, rgba(201,162,75,.10)); }
+
+/* Cartões: hierarquia clara e respiro */
+.cartao { border-radius: var(--r-md); box-shadow: var(--sombra-2); padding: var(--sp-5); margin: var(--sp-5) 0; border: 1px solid rgba(223,227,236,.9); }
+.cartao > h2 { font-size: 1.25rem; letter-spacing: -.005em; margin-bottom: var(--sp-4); }
+.inicio-rep { padding: var(--sp-4) var(--sp-5); border-left: 4px solid var(--ouro); }
+.badge { background: #eef3fb; border-color: #cddbf2; padding: 6px 14px; }
+
+/* Controles: altura mínima de toque, foco consistente */
+button, .botao { min-height: 40px; font-weight: 500; }
+button.icone { min-height: 36px; min-width: 36px; justify-content: center; }
+input[type=text], input[type=url], input[type=email], input[type=password], input[type=search], select { min-height: 42px; }
+input[type=search] { background: #fff; }
+#busca-q { font-size: 1.05rem; padding: 12px 14px; border-radius: var(--r-md); }
+button.primario { font-weight: 600; letter-spacing: .01em; }
+
+/* Lista de músicas e resultados */
+.musica { border-radius: var(--r-sm); }
+.resultados li { padding: var(--sp-2) var(--sp-1); }
+.resultados li:hover { background: #f7f9fc; border-radius: var(--r-sm); }
+
+/* Janelas (diálogos) */
+dialog#dlg-novo, dialog#dlg-musica { border-radius: var(--r-lg); box-shadow: var(--sombra-3); }
+dialog#dlg-novo::backdrop, dialog#dlg-musica::backdrop { background: rgba(16,32,58,.55); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); }
+.tipo-op { border-radius: var(--r-md); transition: border-color .15s, background .15s, box-shadow .15s; }
+.tipo-op:hover { border-color: var(--marinho-2); box-shadow: var(--sombra-1); }
+
+/* Rodapé de respiro e celular */
+main { padding-bottom: 72px; }
+@media (max-width: 640px) {
+  .topo { min-height: 132px; padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+  .topo .sub { font-size: .92rem; }
+  .cartao { padding: var(--sp-4); margin: var(--sp-4) 0; border-radius: var(--r-sm); }
+  .inicio-rep { padding: var(--sp-3) var(--sp-4); }
+}
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
