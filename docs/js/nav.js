@@ -163,6 +163,40 @@
   window.addEventListener("hashchange", volta);
   volta();
 
+  // Clicar na música abre a cifra (prévia + edição) numa janela, sem trocar de seção.
+  // O app desenha os editores dentro de #editores (que fica na janela); aqui só mostramos o da música escolhida.
+  const dlgM = $("#dlg-musica");
+  let abertaId = null;
+  const soEscolhida = () => {
+    const eds = document.querySelectorAll("#editores details.editor");
+    eds.forEach((d) => { d.hidden = d.dataset.id !== abertaId; });
+    if (dlgM.open && abertaId && ![...eds].some((d) => d.dataset.id === abertaId)) dlgM.close(); // música removida
+  };
+  new MutationObserver(soEscolhida).observe($("#editores"), { childList: true });
+  $("#lista-musicas").addEventListener("click", (e) => {
+    const info = e.target.closest(".musica .info");
+    if (!info || e.target.closest("a")) return;
+    abertaId = info.closest(".musica").dataset.id;
+    soEscolhida();
+    const d = document.querySelector(`#editores details.editor[data-id="${abertaId}"]`);
+    if (!d) return;
+    d.open = true;
+    const p = d.querySelector('input[data-acao="previa"]');
+    if (p && !p.checked) p.click(); // liga a prévia
+    dlgM.showModal();
+  });
+  dlgM.addEventListener("close", () => { abertaId = null; });
+  dlgM.addEventListener("click", (e) => { if (e.target === dlgM) dlgM.close(); });
+  $("#dlg-musica-fechar").addEventListener("click", () => dlgM.close());
+  // O aviso flutuante fica atrás da janela; repete a mensagem dentro dela
+  new MutationObserver(() => {
+    const t = $("#aviso-flutuante");
+    if (t.hidden || !dlgM.open) return;
+    const a = $("#dlg-aviso");
+    a.textContent = t.textContent; a.hidden = false;
+    setTimeout(() => { a.hidden = true; }, 3000);
+  }).observe($("#aviso-flutuante"), { attributes: true, childList: true, characterData: true, subtree: true });
+
   // Barra lateral logo abaixo do cabeçalho/menu (acompanha a rolagem)
   let raf = 0;
   const ajustarLateral = () => {
