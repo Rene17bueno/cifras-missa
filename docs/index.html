@@ -68,6 +68,7 @@
         <button class="aba" data-aba="aba-nome">Buscar pelo nome</button>
         <button class="aba" data-aba="aba-sugestoes">Sugestões do domingo</button>
         <button class="aba" data-aba="aba-catalogo">Catálogo</button>
+        <button class="aba" data-aba="aba-goc">Grupo de Oração</button>
         <button class="aba" data-aba="aba-varios">Vários links de uma vez</button>
         <button class="aba" data-aba="aba-colar">Colar cifra</button>
       </div>
@@ -111,6 +112,16 @@
         <p class="dica">Todas as músicas do Músicas para Missa, separadas por parte da missa. ➕ adiciona à lista e busca a cifra. A varredura pode levar alguns minutos.</p>
         <p id="cat-status" class="aviso" hidden></p>
         <div id="cat-lista"></div>
+      </div>
+
+      <div id="aba-goc" class="painel-aba" hidden>
+        <div class="linha">
+          <label class="campo">Pasta <select id="goc-pasta"></select></label>
+          <label class="campo cresce">Filtrar pelo nome <input id="goc-filtro" type="search" placeholder="Ex.: rendo, abba"></label>
+        </div>
+        <p class="dica">Músicas de grupo de oração por artista/comunidade (fonte: cifras.com.br). ↗ abre a cifra no site; ➕ leva título e link para "Colar cifra", onde você cola a cifra copiada.</p>
+        <p id="goc-status" class="aviso" hidden></p>
+        <div id="goc-lista"></div>
       </div>
 
       <form id="aba-varios" class="painel-aba" hidden>
