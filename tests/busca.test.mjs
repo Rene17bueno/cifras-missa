@@ -25,6 +25,10 @@ const PAGINA = `<a href="#accorside-1">Canto de Abertura - Sugestões</a><a href
 <div id="accorside-2"><ul><li><a href="/musica/nao-entra/">leitura</a></li></ul></div>
 <div id="accorside-3"><ul><li><a href="/musica/gloria-capella/">GLÓRIA (Capella)</a></li></ul></div>`;
 
+const MAPA = `<urlset><url><loc>https://musicasparamissa.com.br/musica/cordeiro-de-deus-i/</loc></url><url><loc>https://musicasparamissa.com.br/musica/salmo-95-gloria-ao-senhor/</loc></url><url><loc>https://musicasparamissa.com.br/musica/a-barca/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/entrada-tempo-comum/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/aclamacao-10dtc-ano-a/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/comunh%C3%A3o-sao-pedro/</loc></url></urlset>`;
+const PASTA = `<a href="/musica/a-barca"> <h4>A BARCA</h4><p>letra</p></a><a href="/musica/vamos-celebrar"> <h4>VAMOS CELEBRAR (Shalom)</h4></a>`;
+
+let usarMapa = false;
 let falhar = new Set();
 let autorizado = true, cota = true;
 globalThis.fetch = async (url) => {
@@ -35,7 +39,8 @@ globalThis.fetch = async (url) => {
   for (const f of falhar) if (url.includes(f)) return new Response("x", { status: 500 });
   if (url.endsWith("musicasparamissa.com.br/")) return R(HOME);
   if (url.includes("/sugestoes-para/")) return R(PAGINA);
-  if (url.includes("sitemap.xml")) return R(SITEMAP, "application/xml");
+  if (url.includes("/musicas-de/")) return R(PASTA);
+  if (url.includes("sitemap.xml")) return R(usarMapa ? MAPA : SITEMAP, "application/xml");
   if (url.includes("cifras.com.br/api/search")) return R(JSON.stringify(API), "application/json");
   if (url.includes("duckduckgo")) return R(DDG);
   if (url.includes("cifras.com.br/cifra/")) return R(CIFRA);
@@ -53,7 +58,7 @@ const chamar = async (qs, { origem = ORIGEM, auth = USUARIO, metodo = "GET" } = 
   return [r.status, r.status === 204 ? null : await r.json(), r.headers];
 };
 
-test.beforeEach(() => { falhar = new Set(); autorizado = true; cota = true; });
+test.beforeEach(() => { usarMapa = false; falhar = new Set(); autorizado = true; cota = true; });
 
 test("acesso: exige login, e-mail autorizado, origem do site e cota", async () => {
   assert.equal((await chamar({ titulo: "Kyrie" }, { auth: "" }))[0], 401);
@@ -124,4 +129,16 @@ test("sugestões: lista as próximas missas e separa as músicas por parte da mi
   ]);
   assert.equal((await chamar({ sugestoes: "../../etc" }))[0], 400);
   assert.equal((await chamar({ sugestoes: "29o-domingo" }, { auth: "" }))[0], 401);
+});
+
+test("catálogo: classifica pelo nome, escolhe as pastas certas e lê os títulos delas", async () => {
+  usarMapa = true;
+  let [st, d] = await chamar({ catalogo: "1" });
+  assert.equal(st, 200);
+  assert.deepEqual(d.musicas, [["cordeiro-de-deus-i", "Cordeiro"], ["salmo-95-gloria-ao-senhor", "Salmo"], ["a-barca", "Outras"]]);
+  assert.deepEqual(d.pastas, [["entrada-tempo-comum", "Entrada"], ["comunhão-sao-pedro", "Comunhão"]]);
+  [st, d] = await chamar({ pastas: "entrada-tempo-comum,../x,comunhão-sao-pedro" });
+  assert.equal(st, 200);
+  assert.deepEqual(d.pastas[0], ["entrada-tempo-comum", [["a-barca", "A BARCA"], ["vamos-celebrar", "VAMOS CELEBRAR (Shalom)"]]]);
+  assert.equal(d.pastas.length, 2);
 });
