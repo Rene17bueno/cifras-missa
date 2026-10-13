@@ -231,6 +231,13 @@
     alvo.click();
   });
 
+  // Botão do cabeçalho e menu que vira barra fixa ao rolar a página
+  $("#hero-novo").addEventListener("click", CM.pedirTipo);
+  const menuEl = $(".menu");
+  const fixarMenu = () => menuEl.classList.toggle("fixa", window.scrollY > 90);
+  window.addEventListener("scroll", fixarMenu, { passive: true });
+  fixarMenu();
+
   // Barra lateral logo abaixo do cabeçalho/menu (acompanha a rolagem)
   let raf = 0;
   const ajustarLateral = () => {
