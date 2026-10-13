@@ -49,3 +49,4 @@ dialog#dlg-musica #editores { padding: 10px 14px 16px; }
 details.editor[hidden] { display: none; }
 
 @media (max-width: 759px) { .menu-item { padding: 12px 11px; font-size: .9rem; } }
+.salvar-inicio{align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--borda)}
