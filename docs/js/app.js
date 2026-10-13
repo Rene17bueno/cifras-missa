@@ -963,11 +963,10 @@
   let buscandoAutomatico = false;
 
   async function chamarBusca(parametros) {
-    const token = await Nuvem.token();
-    if (!token) throw new Error("entre na sua conta (seção ☁️ Conta) para buscar cifras");
+    const token = await Nuvem.token(); // opcional: a busca é aberta
     let r;
     try {
-      r = await fetch(API_BUSCA + "?" + new URLSearchParams(parametros), { headers: { Authorization: "Bearer " + token } });
+      r = await fetch(API_BUSCA + "?" + new URLSearchParams(parametros), token ? { headers: { Authorization: "Bearer " + token } } : {});
     } catch {
       throw new Error("sem conexão com o serviço de busca");
     }
@@ -1039,7 +1038,6 @@
   async function buscarAutomatico() {
     const alvo = rep.musicas.filter((m) => !comCifra(m) && buscavel(m));
     if (!alvo.length || buscandoAutomatico) return;
-    if (!Nuvem.ativo()) { aviso("Entre na sua conta (seção ☁️ Conta, no topo) para buscar as cifras."); return; }
     buscandoAutomatico = true;
     let ok = 0;
     const erros = [];

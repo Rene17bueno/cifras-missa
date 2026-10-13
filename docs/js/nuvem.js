@@ -11,6 +11,7 @@ const Nuvem = (function () {
   const URL_BASE = "https://tuciclxzfcbsaauphryk.supabase.co";
   const CHAVE_PUBLICA = "sb_publishable_7cckd9kEEIauypKnEoJ9Iw_yoSakOeQ"; // chave pública: o acesso é protegido por RLS
   const CHAVE_SESSAO = "cifras.sessao";
+  const CRIAR_CONTA = false; // true volta a mostrar o botão "Criar conta"
   const FUNCAO_BUSCA = URL_BASE + "/functions/v1/cifras-busca";
 
   const $ = (s) => document.querySelector(s);
@@ -115,13 +116,12 @@ const Nuvem = (function () {
 
   // ---------------------------------------------------------------- Chamadas ao banco (PostgREST)
   async function rest(caminho, { metodo = "GET", corpo, prefer } = {}) {
-    const t = await token();
-    if (!t) throw new Error("Entre na sua conta.");
+    const t = await token(); // sem login vale só a chave pública (catálogo aberto)
     const r = await fetch(`${URL_BASE}/rest/v1/${caminho}`, {
       method: metodo,
       headers: {
         apikey: CHAVE_PUBLICA,
-        Authorization: "Bearer " + t,
+        ...(t ? { Authorization: "Bearer " + t } : {}),
         "Content-Type": "application/json",
         ...(prefer ? { Prefer: prefer } : {}),
       },
@@ -225,13 +225,12 @@ const Nuvem = (function () {
     const aviso = mensagem ? `<p class="aviso-alerta">${esc(mensagem)}</p>` : "";
     if (!sessao) {
       el.innerHTML = `<h2>☁️ Conta</h2>
-        <p class="dica">Entre para <b>buscar cifras nos sites</b> e guardar seus repertórios na nuvem (sincroniza entre aparelhos).
-          Só e-mails autorizados pelo dono do site conseguem usar.</p>
+        <p class="dica">A busca de cifras e o catálogo funcionam <b>sem entrar</b>. Entrar só serve para guardar seus repertórios na nuvem (sincroniza entre aparelhos).</p>
         <form id="form-conta" class="linha">
           <label class="campo cresce">E-mail <input id="conta-email" type="email" autocomplete="email" required></label>
           <label class="campo cresce">Senha (8 ou mais) <input id="conta-senha" type="password" autocomplete="current-password" minlength="8" required></label>
           <button type="submit" class="primario" data-modo="entrar">Entrar</button>
-          <button type="submit" data-modo="criar">Criar conta</button>
+          ${CRIAR_CONTA ? '<button type="submit" data-modo="criar">Criar conta</button>' : ""}
         </form>${aviso}`;
       return;
     }
