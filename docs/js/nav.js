@@ -177,7 +177,7 @@
     if (!c || c.querySelector(".barra-musica")) return;
     const barra = document.createElement("div");
     barra.className = "barra-musica";
-    for (const x of [c.querySelector('select[data-acao="tom"]')?.closest(".linha"), c.querySelector(".tocando"), c.querySelector("fieldset")?.closest(".linha")])
+    for (const x of [c.querySelector('button[data-acao="salvar"]')?.closest(".linha"), c.querySelector('select[data-acao="tom"]')?.closest(".linha"), c.querySelector(".tocando"), c.querySelector("fieldset")?.closest(".linha")])
       if (x) barra.appendChild(x);
     const previa = c.querySelector(".previa-musica");
     if (previa) c.prepend(previa);
