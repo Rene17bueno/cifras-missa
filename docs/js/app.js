@@ -222,6 +222,7 @@
     const nomes = nomesRepertorios();
     $("#lista-repertorios").innerHTML = nomes
       .map((n) => `<option ${n === rep.nome ? "selected" : ""}>${esc(n)}</option>`).join("");
+    renderLateralReps();
   }
 
   function renderPartes() {
@@ -542,6 +543,7 @@
     sel.innerHTML = nomes.map((n) => `<option value="${esc(n)}">${esc(n)} (${catalogo[n].length})</option>`).join("");
     if (nomes.includes(atual)) sel.value = atual;
     listarCatalogo();
+    renderLateral();
   }
 
   function listarCatalogo() {
@@ -595,15 +597,17 @@
   $("#cat-varrer").addEventListener("click", varrerCatalogo);
   $("#cat-parte").addEventListener("change", listarCatalogo);
   $("#cat-filtro").addEventListener("input", listarCatalogo);
-  $("#cat-lista").addEventListener("click", (e) => {
-    const botao = e.target.closest("button[data-url]");
-    if (!botao) return;
+  function adicionarDoCatalogo(botao) {
     rep.musicas.push(novaMusica(parteDaLista(botao.dataset.parte === "Outras" ? "Outra" : botao.dataset.parte), botao.dataset.url));
     verDepois(rep.musicas[rep.musicas.length - 1]);
     botao.disabled = true;
     salvar();
     render();
     buscarAutomatico();
+  }
+  $("#cat-lista").addEventListener("click", (e) => {
+    const botao = e.target.closest("button[data-url]");
+    if (botao) adicionarDoCatalogo(botao);
   });
 
   // Sugestões do domingo (Músicas para Missa, pela função de busca)
@@ -1249,6 +1253,61 @@
 
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => { /* sem modo offline */ });
 
+  // ---------------------------------------------------------------- Barra lateral: pastas do catálogo e busca de repertórios
+  const ordemPartes = (nomes) => nomes.sort((a, b) => {
+    const ia = PARTES_PADRAO.indexOf(a), ib = PARTES_PADRAO.indexOf(b);
+    return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, "pt-BR");
+  });
+  const itensPasta = (parte, filtro) => {
+    const todas = ((catalogo || {})[parte] || []).filter((m) => !filtro || comparavel(m.titulo).includes(filtro));
+    return `<ul>` + todas.slice(0, 100).map((m) => `<li><button type="button" data-parte="${esc(parte)}" data-url="${esc(m.url)}" title="Adicionar à lista e ver a cifra">➕</button>${esc(m.titulo)}</li>`).join("") + "</ul>"
+      + (todas.length > 100 ? `<small>Mostrando 100 de ${todas.length}; use a busca.</small>` : "");
+  };
+
+  function renderLateral() {
+    const el = $("#lat-lista");
+    if (!catalogo || !Object.keys(catalogo).length) { el.innerHTML = '<p class="dica">Catálogo vazio. Abra "Catálogo" em Adicionar músicas e clique em Atualizar catálogo.</p>'; return; }
+    const filtro = comparavel($("#lat-filtro").value);
+    const abertas = new Set([...el.querySelectorAll("details[open]")].map((d) => d.dataset.parte));
+    el.innerHTML = ordemPartes(Object.keys(catalogo)).map((parte) => {
+      const n = catalogo[parte].filter((m) => !filtro || comparavel(m.titulo).includes(filtro)).length;
+      if (!n) return "";
+      const aberta = filtro || abertas.has(parte);
+      return `<details data-parte="${esc(parte)}" ${aberta ? "open" : ""}><summary>📁 ${esc(parte)} (${n})</summary>${aberta ? itensPasta(parte, filtro) : ""}</details>`;
+    }).join("") || '<p class="dica">Nenhuma música encontrada.</p>';
+  }
+
+  function tituloDe(m) { return nomeMusica(m.resultado) || (m.busca && m.busca.titulo) || ""; }
+  function renderLateralReps() {
+    const el = $("#lat-rep-lista");
+    const filtro = comparavel($("#lat-rep-filtro").value);
+    el.innerHTML = nomesRepertorios().flatMap((nome) => {
+      const dados = ler(CHAVE.prefixo + nome, null);
+      const musicas = (dados && dados.musicas) || [];
+      const achadas = filtro ? musicas.filter((m) => comparavel(tituloDe(m)).includes(filtro)).map(tituloDe) : [];
+      if (filtro && !comparavel(nome).includes(filtro) && !achadas.length) return [];
+      return [`<button type="button" class="lat-rep" data-rep="${esc(nome)}"><b>${esc(nome)}</b><small>${musicas.length} música(s)${achadas.length ? " · " + esc(achadas.slice(0, 3).join(", ")) : ""}</small></button>`];
+    }).join("") || '<p class="dica">Nenhum repertório encontrado.</p>';
+  }
+
+  $("#lat-filtro").addEventListener("input", renderLateral);
+  $("#lat-rep-filtro").addEventListener("input", renderLateralReps);
+  $("#lat-lista").addEventListener("toggle", (e) => {
+    const det = e.target;
+    if (det.open && !det.querySelector("ul")) det.insertAdjacentHTML("beforeend", itensPasta(det.dataset.parte, comparavel($("#lat-filtro").value)));
+  }, true);
+  $("#lat-lista").addEventListener("click", (e) => { const b = e.target.closest("button[data-url]"); if (b) adicionarDoCatalogo(b); });
+  $("#lat-rep-lista").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-rep]");
+    if (b && carregarRepertorio(b.dataset.rep)) { render(); aviso(`Repertório aberto: ${b.dataset.rep}`); }
+  });
+  document.querySelectorAll(".lat-aba").forEach((aba) => aba.addEventListener("click", () => {
+    document.querySelectorAll(".lat-aba").forEach((a) => a.classList.toggle("ativa", a === aba));
+    document.querySelectorAll(".lat-painel").forEach((p) => { p.hidden = p.id !== aba.dataset.lat; });
+  }));
+  $("#lat-abrir").addEventListener("click", () => $("#lateral").classList.toggle("aberta"));
+
   receberDoFavorito();
   render();
+  carregarCatalogo();
 })();
