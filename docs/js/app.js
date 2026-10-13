@@ -63,6 +63,8 @@
   const abertos = new Set();      // editores abertos
   const previas = new Set();      // prévias ligadas nos editores
   let aVer = null;                // música recém-adicionada pelo ➕: abre editor + prévia quando a cifra chega
+  let acervo = new Set();         // cifras do Músicas para Missa já guardadas no Supabase (endereços)
+  let baixando = false, parar = false;
   const verDepois = (m) => { aVer = m.id; abertos.add(m.id); previas.add(m.id); };
 
   const novoId = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
@@ -971,7 +973,18 @@
   const buscavel = (m) => m.url || m.busca;
   let buscandoAutomatico = false;
 
+  /** Usa a cifra guardada no Supabase (sem gastar busca no site); se não tiver, busca no site */
   async function chamarBusca(parametros) {
+    if (parametros.url && acervo.has(parametros.url)) {
+      try {
+        const l = await Nuvem.rest(`cifras_acervo?select=titulo,artista,cifra&url=eq.${encodeURIComponent(parametros.url)}`);
+        if (l && l[0]) return { url: parametros.url, ...l[0] };
+      } catch { /* busca no site */ }
+    }
+    return chamarFuncao(parametros);
+  }
+
+  async function chamarFuncao(parametros) {
     const token = await Nuvem.token(); // opcional: a busca é aberta
     let r;
     try {
@@ -1274,7 +1287,8 @@
       const n = catalogo[parte].filter((m) => !filtro || comparavel(m.titulo).includes(filtro)).length;
       if (!n) return "";
       const aberta = filtro || abertas.has(parte);
-      return `<details data-parte="${esc(parte)}" ${aberta ? "open" : ""}><summary>📁 ${esc(parte)} (${n})</summary>${aberta ? itensPasta(parte, filtro) : ""}</details>`;
+      const guardadas = catalogo[parte].filter((m) => acervo.has(m.url)).length;
+      return `<details data-parte="${esc(parte)}" ${aberta ? "open" : ""}><summary>📁 ${esc(parte)} (${n})${guardadas ? ` <small>✓${guardadas}</small>` : ""}<button type="button" class="lat-baixar" data-baixar="${esc(parte)}" title="Baixar as cifras que faltam desta pasta">⬇️</button></summary>${aberta ? itensPasta(parte, filtro) : ""}</details>`;
     }).join("") || '<p class="dica">Nenhuma música encontrada.</p>';
   }
 
@@ -1298,7 +1312,65 @@
     const det = e.target;
     if (det.open && !det.querySelector("ul")) det.insertAdjacentHTML("beforeend", itensPasta(det.dataset.parte, comparavel($("#lat-filtro").value)));
   }, true);
-  $("#lat-lista").addEventListener("click", (e) => { const b = e.target.closest("button[data-url]"); if (b) adicionarDoCatalogo(b); });
+  $("#lat-lista").addEventListener("click", (e) => {
+    const bx = e.target.closest("button[data-baixar]");
+    if (bx) { e.preventDefault(); baixarPasta(bx.dataset.baixar); return; }
+    const b = e.target.closest("button[data-url]");
+    if (b) adicionarDoCatalogo(b);
+  });
+  $("#lat-parar").addEventListener("click", () => { parar = true; });
+
+  // Acervo: baixa as cifras de uma pasta inteira para o Supabase (devagar: 3 por vez)
+  async function carregarAcervo() {
+    try {
+      const urls = new Set();
+      for (let i = 0; ; i += 1000) {
+        const lote = await Nuvem.rest(`cifras_acervo?select=url&order=url&limit=1000&offset=${i}`);
+        lote.forEach((l) => urls.add(l.url));
+        if (lote.length < 1000) break;
+      }
+      acervo = urls;
+    } catch { /* sem acervo ainda */ }
+    renderLateral();
+  }
+
+  async function baixarPasta(parte) {
+    if (baixando) { aviso("Já há um download em andamento."); return; }
+    const faltam = ((catalogo || {})[parte] || []).filter((m) => !acervo.has(m.url));
+    if (!faltam.length) { aviso(`Todas as cifras de "${parte}" já estão guardadas.`); return; }
+    if (!window.confirm(`Baixar ${faltam.length} cifra(s) de "${parte}" do Músicas para Missa e guardar no Supabase?\nLeva uns ${Math.ceil(faltam.length * 0.7 / 60)} min e usa ${faltam.length} da cota diária de buscas.`)) return;
+    baixando = true; parar = false;
+    const st = $("#lat-status"); st.hidden = false;
+    let feitas = 0, falhas = 0, salvas = 0, pendentes = [], i = 0;
+    const gravarLote = async () => {
+      const lote = pendentes; pendentes = [];
+      if (!lote.length) return;
+      try {
+        await Nuvem.rest("cifras_acervo?on_conflict=url", { metodo: "POST", corpo: lote, prefer: "resolution=merge-duplicates,return=minimal" });
+        lote.forEach((l) => acervo.add(l.url)); salvas += lote.length;
+      } catch { falhas += lote.length; }
+    };
+    const trabalhador = async () => {
+      while (i < faltam.length && !parar) {
+        const m = faltam[i++];
+        try {
+          const d = await chamarFuncao({ url: m.url });
+          pendentes.push({ url: m.url, titulo: (d.titulo || m.titulo).slice(0, 200), artista: (d.artista || "").slice(0, 200), cifra: d.cifra.slice(0, 30000) });
+        } catch (erro) {
+          falhas += 1;
+          if (/cota/.test(erro.message)) { parar = true; aviso("Download interrompido: " + erro.message); }
+        }
+        feitas += 1;
+        st.firstElementChild.textContent = `⬇️ ${parte}: ${feitas} de ${faltam.length}${falhas ? ` · ${falhas} sem cifra` : ""}`;
+        if (pendentes.length >= 10) await gravarLote();
+      }
+    };
+    await Promise.all([trabalhador(), trabalhador(), trabalhador()]);
+    await gravarLote();
+    baixando = false; st.hidden = true;
+    renderLateral();
+    aviso(`${parte}: ${salvas} cifra(s) guardada(s)${falhas ? `; ${falhas} sem cifra (só letra, fora do ar ou cota)` : ""}.`);
+  }
   function renomearRep(antigo, novo) {
     novo = (novo || "").trim();
     if (!novo || novo === antigo) return;
@@ -1352,4 +1424,5 @@
   receberDoFavorito();
   render();
   carregarCatalogo();
+  carregarAcervo();
 })();
