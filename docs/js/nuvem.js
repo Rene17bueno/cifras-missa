@@ -277,5 +277,5 @@ const Nuvem = (function () {
     if (sessao) depoisDeEntrar();
   }
 
-  return { iniciar, ativo, logado, token, daBiblioteca, guardar, agendarEnvio, apagar, FUNCAO_BUSCA };
+  return { iniciar, ativo, logado, token, rest, daBiblioteca, guardar, agendarEnvio, apagar, FUNCAO_BUSCA };
 })();

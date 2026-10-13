@@ -455,6 +455,7 @@
     document.querySelectorAll(".aba").forEach((a) => a.classList.toggle("ativa", a === aba));
     document.querySelectorAll(".painel-aba").forEach((p) => { p.hidden = p.id !== aba.dataset.aba; });
     if (aba.dataset.aba === "aba-sugestoes") carregarMissas();
+    if (aba.dataset.aba === "aba-catalogo") carregarCatalogo();
   }));
 
   document.querySelectorAll("select.sel-parte").forEach((sel) => sel.addEventListener("change", () => {
@@ -499,6 +500,104 @@
     m.busca = { titulo, artista: $("#nome-artista").value.trim() };
     rep.musicas.push(m);
     $("#nome-titulo").value = $("#nome-artista").value = "";
+    salvar();
+    render();
+    buscarAutomatico();
+  });
+
+  // Catálogo: todas as músicas do Músicas para Missa por parte da missa (varredura guardada no Supabase)
+  let catalogo = null; // { parte: [{ url, titulo }] }
+  const statusCat = (texto) => { $("#cat-status").hidden = !texto; $("#cat-status").textContent = texto || ""; };
+  const humanizar = (slug) => { const t = decodeURIComponent(slug).replace(/-/g, " "); return t.charAt(0).toUpperCase() + t.slice(1); };
+
+  async function carregarCatalogo(forcar = false) {
+    if (catalogo && !forcar) return renderCatalogo();
+    statusCat("Carregando catálogo…");
+    try {
+      const linhas = [];
+      for (let i = 0; ; i += 1000) {
+        const lote = await Nuvem.rest(`cifras_catalogo?select=url,titulo,parte&order=titulo&limit=1000&offset=${i}`);
+        linhas.push(...lote);
+        if (lote.length < 1000) break;
+      }
+      catalogo = {};
+      for (const l of linhas) (catalogo[l.parte] ||= []).push(l);
+      statusCat(linhas.length ? "" : "Catálogo vazio: clique em Atualizar catálogo para a primeira varredura.");
+    } catch (erro) {
+      statusCat("Não consegui carregar o catálogo: " + erro.message);
+      catalogo = null;
+    }
+    renderCatalogo();
+  }
+
+  function renderCatalogo() {
+    const sel = $("#cat-parte");
+    const atual = sel.value;
+    const nomes = Object.keys(catalogo || {}).sort((a, b) => {
+      const ia = PARTES_PADRAO.indexOf(a), ib = PARTES_PADRAO.indexOf(b);
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b, "pt-BR");
+    });
+    sel.innerHTML = nomes.map((n) => `<option value="${esc(n)}">${esc(n)} (${catalogo[n].length})</option>`).join("");
+    if (nomes.includes(atual)) sel.value = atual;
+    listarCatalogo();
+  }
+
+  function listarCatalogo() {
+    const parte = $("#cat-parte").value;
+    const filtro = comparavel($("#cat-filtro").value);
+    const todas = ((catalogo || {})[parte] || []).filter((m) => !filtro || comparavel(m.titulo).includes(filtro));
+    $("#cat-lista").innerHTML = todas.length
+      ? `<ul class="catalogo">` + todas.slice(0, 100).map((m) => `<li><button type="button" data-parte="${esc(parte)}" data-url="${esc(m.url)}" title="Adicionar à lista">➕</button> ${esc(m.titulo)}</li>`).join("") + "</ul>"
+        + (todas.length > 100 ? `<p class="dica">Mostrando 100 de ${todas.length}; use o filtro para achar as outras.</p>` : "")
+      : "";
+  }
+
+  async function varrerCatalogo() {
+    const botao = $("#cat-varrer");
+    botao.disabled = true;
+    try {
+      statusCat("Lendo a lista de músicas do site…");
+      const { musicas, pastas } = await chamarBusca({ catalogo: "1" });
+      const votos = {}, titulos = {}; // votos[musica][parte]: a pasta do site manda sobre o palpite pelo nome
+      for (let i = 0; i < pastas.length; i += 12) {
+        statusCat(`Varrendo as pastas do site: ${Math.min(i + 12, pastas.length)} de ${pastas.length}…`);
+        const lote = pastas.slice(i, i + 12);
+        const { pastas: lidas } = await chamarBusca({ pastas: lote.map(([slug]) => slug).join(",") });
+        for (const [slug, itens] of lidas) {
+          const parte = lote.find(([s]) => s === slug)[1];
+          for (const [musica, titulo] of itens) {
+            titulos[musica] = titulo;
+            const v = (votos[musica] ||= {});
+            v[parte] = (v[parte] || 0) + 1;
+          }
+        }
+      }
+      const melhor = (v) => Object.entries(v).sort((a, b) => b[1] - a[1])[0][0];
+      const linhas = musicas.map(([slug, parteNome]) => ({
+        url: `https://musicasparamissa.com.br/musica/${slug}/`,
+        titulo: (titulos[slug] || humanizar(slug)).slice(0, 200),
+        parte: votos[slug] ? melhor(votos[slug]) : parteNome,
+      }));
+      for (let i = 0; i < linhas.length; i += 500) {
+        statusCat(`Guardando no catálogo: ${Math.min(i + 500, linhas.length)} de ${linhas.length}…`);
+        await Nuvem.rest("cifras_catalogo?on_conflict=url", { metodo: "POST", corpo: linhas.slice(i, i + 500), prefer: "resolution=merge-duplicates,return=minimal" });
+      }
+      await carregarCatalogo(true);
+      aviso(`Catálogo atualizado: ${linhas.length} músicas.`);
+    } catch (erro) {
+      statusCat("A varredura parou: " + erro.message);
+    }
+    botao.disabled = false;
+  }
+
+  $("#cat-varrer").addEventListener("click", varrerCatalogo);
+  $("#cat-parte").addEventListener("change", listarCatalogo);
+  $("#cat-filtro").addEventListener("input", listarCatalogo);
+  $("#cat-lista").addEventListener("click", (e) => {
+    const botao = e.target.closest("button[data-url]");
+    if (!botao) return;
+    rep.musicas.push(novaMusica(parteDaLista(botao.dataset.parte === "Outras" ? "Outra" : botao.dataset.parte), botao.dataset.url));
+    botao.disabled = true;
     salvar();
     render();
     buscarAutomatico();
