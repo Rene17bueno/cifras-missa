@@ -15,6 +15,22 @@
     <p class="sub">1. Adicione as músicas → 2. Organize → 3. Traga as cifras → 4. Revise e edite → 5. Baixe</p>
   </header>
 
+  <button id="lat-abrir" class="lat-abrir" type="button">📁 Pastas</button>
+  <aside id="lateral" class="lateral" aria-label="Pastas e repertórios">
+    <div class="lat-abas">
+      <button type="button" class="lat-aba ativa" data-lat="lat-pastas">📁 Pastas</button>
+      <button type="button" class="lat-aba" data-lat="lat-reps">🔎 Repertórios</button>
+    </div>
+    <div id="lat-pastas" class="lat-painel">
+      <input id="lat-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música">
+      <div id="lat-lista"></div>
+    </div>
+    <div id="lat-reps" class="lat-painel" hidden>
+      <input id="lat-rep-filtro" type="search" placeholder="Procurar repertório ou música…" aria-label="Procurar repertório">
+      <div id="lat-rep-lista"></div>
+    </div>
+  </aside>
+
   <main>
     <!-- Conta -->
     <section id="conta" class="cartao"></section>
