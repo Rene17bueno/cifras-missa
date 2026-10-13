@@ -219,3 +219,7 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 .normas .nao { background: #fcefed; border-left: 5px solid #b3382c; }
 .normas .nao h3 { color: #9c2c21; }
 .normas ol { padding-left: 22px; line-height: 1.55; }
+
+/* Botão ⬇ de baixar cifras alinhado à direita do resumo (Missa e Grupo de Oração) */
+#lat-lista summary, #lat-goc-lista summary { position: relative; padding-right: 44px; }
+.lat-baixar { float: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
