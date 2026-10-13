@@ -62,6 +62,8 @@
   let rascunhos = {};             // textos do editor ainda não salvos, por música
   const abertos = new Set();      // editores abertos
   const previas = new Set();      // prévias ligadas nos editores
+  let aVer = null;                // música recém-adicionada pelo ➕: abre editor + prévia quando a cifra chega
+  const verDepois = (m) => { aVer = m.id; abertos.add(m.id); previas.add(m.id); };
 
   const novoId = () => Math.random().toString(16).slice(2) + Date.now().toString(16);
   const novaMusica = (posicao, url) => ({ id: novoId(), posicao, url: (url || "").trim(), resultado: null });
@@ -597,6 +599,7 @@
     const botao = e.target.closest("button[data-url]");
     if (!botao) return;
     rep.musicas.push(novaMusica(parteDaLista(botao.dataset.parte === "Outras" ? "Outra" : botao.dataset.parte), botao.dataset.url));
+    verDepois(rep.musicas[rep.musicas.length - 1]);
     botao.disabled = true;
     salvar();
     render();
@@ -643,6 +646,7 @@
     const botao = e.target.closest("button[data-url]");
     if (!botao) return;
     rep.musicas.push(novaMusica(parteDaLista(botao.dataset.parte), botao.dataset.url));
+    verDepois(rep.musicas[rep.musicas.length - 1]);
     botao.disabled = true;
     salvar();
     render();
@@ -1060,6 +1064,7 @@
       + (outroSite ? ` · ${outroSite} achada(s) pelo nome em outro site (confira a versão na seção 4)` : "")
       + (erros.length ? ` · não encontradas: ${erros.join(", ")} (use o favorito ou cole a cifra)` : ""));
     render();
+    if (aVer) { const ed = document.querySelector(`#editores details[data-id="${aVer}"]`); aVer = null; if (ed) ed.scrollIntoView({ behavior: "smooth", block: "start" }); }
   }
 
   /** Troca a cifra achada em outro site por outra opção da lista */
