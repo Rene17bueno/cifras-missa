@@ -16,6 +16,10 @@
     document.querySelectorAll(".vista").forEach((v) => { v.hidden = v.dataset.vista !== vista; });
     document.querySelectorAll(".menu-item").forEach((b) => b.classList.toggle("ativa", b.dataset.ir === vista));
     window.scrollTo(0, 0);
+    if (vista === "oracao") { // o app carrega/desenha a lista do grupo de oração ao "clicar" na aba antiga (agora escondida)
+      document.querySelector('.lat-aba[data-lat="lat-goc"]')?.click();
+      document.querySelectorAll("#lat-pastas, #lat-goc").forEach((p) => { p.hidden = false; });
+    }
   }
   document.addEventListener("click", (e) => {
     const b = e.target.closest("[data-ir]");
