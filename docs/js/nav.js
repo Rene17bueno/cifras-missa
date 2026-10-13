@@ -171,8 +171,21 @@
   // O app desenha os editores dentro de #editores (que fica na janela); aqui só mostramos o da música escolhida.
   const dlgM = $("#dlg-musica");
   let abertaId = null;
+  // Tom e colunas ficam numa barra no topo da janela, logo acima da prévia (sem precisar rolar até o fim do editor)
+  const organizar = (d) => {
+    const c = d.querySelector(".corpo");
+    if (!c || c.querySelector(".barra-musica")) return;
+    const barra = document.createElement("div");
+    barra.className = "barra-musica";
+    for (const x of [c.querySelector('select[data-acao="tom"]')?.closest(".linha"), c.querySelector(".tocando"), c.querySelector("fieldset")?.closest(".linha")])
+      if (x) barra.appendChild(x);
+    const previa = c.querySelector(".previa-musica");
+    if (previa) c.prepend(previa);
+    c.prepend(barra);
+  };
   const soEscolhida = () => {
     const eds = document.querySelectorAll("#editores details.editor");
+    eds.forEach(organizar);
     eds.forEach((d) => { d.hidden = d.dataset.id !== abertaId; });
     if (dlgM.open && abertaId && ![...eds].some((d) => d.dataset.id === abertaId)) dlgM.close(); // música removida
   };
