@@ -208,3 +208,14 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 .normas .fonte { font-size: .85rem; color: #51607a; overflow-wrap: anywhere; }
 .normas .fonte a { color: #1d4e9e; }
 @media (min-width: 861px) { .menu-item { padding-inline: 9px; } }
+
+.normas .duo { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; margin: 14px 0; }
+.normas .duo h3 { margin: 0 0 8px; font-size: 1rem; text-transform: uppercase; letter-spacing: .04em; }
+.normas .duo ul { margin: 0; padding-left: 18px; }
+.normas .duo li { margin: 0 0 10px; line-height: 1.5; }
+.normas .sim, .normas .nao { padding: 14px 16px; border-radius: 14px; }
+.normas .sim { background: #eef8f1; border-left: 5px solid #2e7d4f; }
+.normas .sim h3 { color: #1f6a3d; }
+.normas .nao { background: #fcefed; border-left: 5px solid #b3382c; }
+.normas .nao h3 { color: #9c2c21; }
+.normas ol { padding-left: 22px; line-height: 1.55; }
