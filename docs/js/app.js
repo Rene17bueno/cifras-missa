@@ -1287,7 +1287,8 @@
       const musicas = (dados && dados.musicas) || [];
       const achadas = filtro ? musicas.filter((m) => comparavel(tituloDe(m)).includes(filtro)).map(tituloDe) : [];
       if (filtro && !comparavel(nome).includes(filtro) && !achadas.length) return [];
-      return [`<button type="button" class="lat-rep" data-rep="${esc(nome)}"><b>${esc(nome)}</b><small>${musicas.length} música(s)${achadas.length ? " · " + esc(achadas.slice(0, 3).join(", ")) : ""}</small></button>`];
+      return [`<div class="lat-rep-linha"><button type="button" class="lat-rep" data-rep="${esc(nome)}"><b>${esc(nome)}</b><small>${musicas.length} música(s)${achadas.length ? " · " + esc(achadas.slice(0, 3).join(", ")) : ""}</small></button>`
+        + `<button type="button" class="icone" data-ren="${esc(nome)}" title="Renomear">✏️</button><button type="button" class="icone" data-del="${esc(nome)}" title="Excluir">🗑️</button></div>`];
     }).join("") || '<p class="dica">Nenhum repertório encontrado.</p>';
   }
 
@@ -1298,10 +1299,50 @@
     if (det.open && !det.querySelector("ul")) det.insertAdjacentHTML("beforeend", itensPasta(det.dataset.parte, comparavel($("#lat-filtro").value)));
   }, true);
   $("#lat-lista").addEventListener("click", (e) => { const b = e.target.closest("button[data-url]"); if (b) adicionarDoCatalogo(b); });
+  function renomearRep(antigo, novo) {
+    novo = (novo || "").trim();
+    if (!novo || novo === antigo) return;
+    if (nomesRepertorios().includes(novo)) { aviso(`Já existe um repertório chamado "${novo}". Escolha outro nome.`); return; }
+    const d = rep.nome === antigo ? rep : ler(CHAVE.prefixo + antigo, null);
+    if (!d) return;
+    Nuvem.apagar(antigo);
+    apagar(CHAVE.prefixo + antigo);
+    d.nome = novo;
+    d.atualizado = Date.now();
+    gravar(CHAVE.prefixo + novo, d);
+    if (d === rep) gravar(CHAVE.atual, novo);
+    Nuvem.agendarEnvio(d);
+    render();
+    aviso(`Renomeado para "${novo}".`);
+  }
+
+  function excluirRep(nome) {
+    if (!window.confirm(`Excluir o repertório "${nome}" deste navegador? Isso não pode ser desfeito.`)) return;
+    Nuvem.apagar(nome);
+    apagar(CHAVE.prefixo + nome);
+    if (rep.nome === nome) {
+      const restantes = nomesRepertorios();
+      if (!(restantes.length && carregarRepertorio(restantes[0]))) novoRepertorio(false);
+    }
+    render();
+  }
+
   $("#lat-rep-lista").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-rep]");
-    if (b && carregarRepertorio(b.dataset.rep)) { render(); aviso(`Repertório aberto: ${b.dataset.rep}`); }
+    const ren = e.target.closest("button[data-ren]"), del = e.target.closest("button[data-del]"), b = e.target.closest("button[data-rep]");
+    if (ren) renomearRep(ren.dataset.ren, window.prompt("Novo nome do repertório:", ren.dataset.ren));
+    else if (del) excluirRep(del.dataset.del);
+    else if (b && carregarRepertorio(b.dataset.rep)) { render(); aviso(`Repertório aberto: ${b.dataset.rep}`); }
   });
+
+  // Recuar / ampliar a barra (a escolha fica guardada neste navegador)
+  const CHAVE_LAT = "cifras.lat.recolhida";
+  const recolher = (sim) => {
+    document.body.classList.toggle("lat-recolhida", sim);
+    $("#lat-recolher").textContent = sim ? "▶" : "◀";
+    gravar(CHAVE_LAT, sim);
+  };
+  recolher(!!ler(CHAVE_LAT, false));
+  $("#lat-recolher").addEventListener("click", () => recolher(!document.body.classList.contains("lat-recolhida")));
   document.querySelectorAll(".lat-aba").forEach((aba) => aba.addEventListener("click", () => {
     document.querySelectorAll(".lat-aba").forEach((a) => a.classList.toggle("ativa", a === aba));
     document.querySelectorAll(".lat-painel").forEach((p) => { p.hidden = p.id !== aba.dataset.lat; });
