@@ -166,6 +166,27 @@ details.partes > summary { cursor: pointer; color: var(--suave); }
   max-width: calc(100% - 32px);
 }
 
+/* Barra lateral: pastas (catálogo) e busca de repertórios */
+.lateral { position: fixed; left: 10px; top: 90px; bottom: 10px; width: 205px; overflow: auto; background: var(--cartao);
+  border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px; z-index: 5; font-size: .85rem; }
+.lat-abas { display: flex; gap: 2px; margin-bottom: 8px; }
+.lat-aba { flex: 1; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 6px 2px; font-size: .8rem; }
+.lat-aba.ativa { border-bottom-color: var(--primaria); color: var(--primaria); }
+.lateral input[type=search] { width: 100%; margin-bottom: 6px; }
+.lateral details { margin: 2px 0; }
+.lateral summary { cursor: pointer; font-weight: 600; padding: 3px 0; }
+.lateral ul { list-style: none; margin: 2px 0 6px; padding: 0; }
+.lateral li { padding: 2px 0; line-height: 1.25; }
+.lateral li button { padding: 0 5px; margin-right: 2px; }
+.lat-rep { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 5px 7px; }
+.lat-rep small { color: var(--suave); display: block; }
+.lat-abrir { display: none; }
+@media (max-width: 1499px) {
+  .lateral { top: 0; bottom: 0; left: 0; width: min(320px, 88vw); border-radius: 0; z-index: 20; transform: translateX(-105%); transition: transform .2s; }
+  .lateral.aberta { transform: none; box-shadow: 0 0 20px rgba(0,0,0,.25); }
+  .lat-abrir { display: block; position: fixed; left: 8px; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); z-index: 19; background: var(--primaria); color: #fff; border: 0; border-radius: 20px; padding: 8px 14px; }
+}
+
 .sugestoes, .catalogo { list-style: none; margin: 4px 0 10px; padding: 0; }
 .sugestoes li { padding: 2px 0; }
 .sugestoes button { padding: 0 6px; }
