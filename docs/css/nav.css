@@ -32,4 +32,7 @@ dialog#dlg-novo h2 { margin: 0 0 4px; font-size: 1.2rem; color: var(--marinho); 
 .tipo-op small { color: var(--suave); }
 .dlg-botoes { justify-content: flex-end; }
 
+/* Barra lateral começa abaixo do cabeçalho azul e do menu (valor ajustado por nav.js) */
+@media (min-width: 760px) { .lateral { top: var(--lat-top, 12px); } }
+
 @media (max-width: 759px) { .menu-item { padding: 12px 11px; font-size: .9rem; } }
