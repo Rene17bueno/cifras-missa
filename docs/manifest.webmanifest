@@ -1,6 +1,6 @@
 {
-  "name": "Cifras da Missa",
-  "short_name": "Cifras",
+  "name": "Músico Católico",
+  "short_name": "Músico Católico",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
