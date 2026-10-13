@@ -21,6 +21,8 @@
 <nav class="menu" aria-label="Seções">
 <div class="menu-in">
 <button type="button" class="menu-item ativa" data-ir="inicio">🏠 Início</button>
+<button type="button" class="menu-item" data-ir="missa">⛪ Missa</button>
+<button type="button" class="menu-item" data-ir="oracao">🙏 Grupo de Oração</button>
 <button type="button" class="menu-item" data-ir="repertorios">📁 Repertórios</button>
 <button type="button" class="menu-item" data-ir="adicionar">➕ Adicionar música</button>
 <button type="button" class="menu-item" data-ir="cifras">🎼 Cifras</button>
@@ -35,15 +37,6 @@
 <button type="button" class="lat-aba ativa" data-lat="lat-pastas">⛪ Missa</button>
 <button type="button" class="lat-aba" data-lat="lat-goc">🙏 Oração</button>
 <button type="button" class="lat-aba" data-lat="lat-reps" title="Repertórios">🔎 Reps</button>
-</div>
-<div id="lat-pastas" class="lat-painel">
-<input id="lat-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música">
-<div id="lat-status" class="aviso" hidden><span></span> <button id="lat-parar" type="button">Parar</button></div>
-<div id="lat-lista"></div>
-</div>
-<div id="lat-goc" class="lat-painel" hidden>
-<input id="lat-goc-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música do grupo de oração">
-<div id="lat-goc-lista"></div>
 </div>
 <div id="lat-reps" class="lat-painel" hidden>
 <input id="lat-rep-filtro" type="search" placeholder="Procurar repertório ou música…" aria-label="Procurar repertório">
@@ -114,6 +107,31 @@
 <p id="resumo-inicio" class="dica" hidden><span id="resumo-inicio-txt"></span> <button type="button" data-ir="cifras">🎼 Trazer cifras e baixar →</button></p>
 </section>
 
+</div>
+
+<!-- ============ MISSA: pastas do catálogo (antes na barra lateral) ============ -->
+<div class="vista" data-vista="missa" hidden>
+<section class="cartao">
+<h2>⛪ Missa</h2>
+<p class="dica">Pastas por parte da missa. ▸ abre a pasta; ➕ coloca a música no repertório aberto; ⬇️ baixa as cifras que faltam.</p>
+<div id="lat-pastas" class="lat-painel">
+<input id="lat-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música">
+<div id="lat-status" class="aviso" hidden><span></span> <button id="lat-parar" type="button">Parar</button></div>
+<div id="lat-lista"></div>
+</div>
+</section>
+</div>
+
+<!-- ============ GRUPO DE ORAÇÃO ============ -->
+<div class="vista" data-vista="oracao" hidden>
+<section class="cartao">
+<h2>🙏 Grupo de Oração</h2>
+<p class="dica">Músicas de grupo de oração por artista/comunidade. ➕ coloca no repertório aberto.</p>
+<div id="lat-goc" class="lat-painel">
+<input id="lat-goc-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música do grupo de oração">
+<div id="lat-goc-lista"></div>
+</div>
+</section>
 </div>
 
 <!-- ============ REPERTÓRIOS ============ -->
