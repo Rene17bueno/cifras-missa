@@ -1,5 +1,5 @@
 // Deixa a página funcionar sem internet (repertórios já salvos no aparelho). Online: sempre a versão mais nova.
-const CACHE = "cifras-missa-v2";
+const CACHE = "cifras-missa-v3";
 const ARQUIVOS = ["./", "index.html", "css/estilo.css", "css/nav.css", "js/layout.js", "js/transpor.js", "js/exportar.js", "js/nuvem.js",
   "js/palco.js", "js/app.js", "js/nav.js", "vendor/jspdf.umd.min.js", "vendor/docx.umd.js", "vendor/exceljs.min.js", "icone.svg", "manifest.webmanifest"];
 
