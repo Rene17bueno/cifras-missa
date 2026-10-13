@@ -197,6 +197,23 @@
     setTimeout(() => { a.hidden = true; }, 3000);
   }).observe($("#aviso-flutuante"), { attributes: true, childList: true, characterData: true, subtree: true });
 
+  // Salvar arquivo direto da tela inicial: reaproveita os botões de Cifras (Word/PDF/Excel/Texto) e a cópia .json
+  $("#salvar-inicio").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-salvar]");
+    if (!b) return;
+    const f = b.dataset.salvar;
+    if (f === "json") { $("#btn-exportar-json").click(); return; }
+    const alvo = document.querySelector(`.botoes-baixar button[data-formato="${f}"]`);
+    if ($("#baixar").hidden || !alvo) { // ainda sem cifras trazidas
+      ir("cifras");
+      const av = $("#aviso-flutuante");
+      av.textContent = "Traga as cifras primeiro (⚡ Buscar cifras automaticamente) e depois salve o arquivo."; av.hidden = false;
+      setTimeout(() => { av.hidden = true; }, 4000);
+      return;
+    }
+    alvo.click();
+  });
+
   // Barra lateral logo abaixo do cabeçalho/menu (acompanha a rolagem)
   let raf = 0;
   const ajustarLateral = () => {
