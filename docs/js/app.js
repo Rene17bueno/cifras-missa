@@ -1,5 +1,5 @@
 /*
- * Cifras da Missa - versão página HTML (sem servidor).
+ * Músico Católico - versão página HTML (sem servidor).
  * Mesmas funções do app Streamlit; os repertórios ficam salvos no navegador (localStorage)
  * e as cifras chegam dos sites pelo favorito "Enviar cifra".
  * O formato do repertório (.json) é o mesmo do app do computador.
@@ -1009,7 +1009,7 @@
   // ---------------------------------------------------------------- Favorito "Enviar cifra"
   /*
    * Código do favorito. Roda na página do site de cifras (CifraClub, Músicas para Missa...):
-   * 1. abre/usa a aba do Cifras da Missa e pede a lista de links que ainda estão sem cifra;
+   * 1. abre/usa a aba do Músico Católico e pede a lista de links que ainda estão sem cifra;
    * 2. manda a cifra da página aberta e busca as outras do MESMO site (o site não bloqueia,
    *    porque o pedido sai da própria página dele), mandando uma por uma para cá.
    * Regras para caber num favorito: sem comentários de linha e com ";" em tudo,
@@ -1018,7 +1018,7 @@
   function favorito(SITE, ORIGEM) {
     var HASH = String.fromCharCode(35);
     var w = window.open(SITE + HASH + "conectar-" + Date.now(), "cifras-missa");
-    if (!w) { alert("O navegador bloqueou a janela do Cifras da Missa. Permita pop-ups para este site e tente de novo."); return; }
+    if (!w) { alert("O navegador bloqueou a janela do Músico Católico. Permita pop-ups para este site e tente de novo."); return; }
     var norm = function (u) {
       try { var x = new URL(u); return (x.hostname.replace(/^www[.]/, "") + x.pathname.replace(/[/]+$/, "")).toLowerCase(); } catch (e) { return u; }
     };
@@ -1055,7 +1055,7 @@
     var intervalo = setInterval(function () {
       if (conectado || ++tentativas > 80) {
         clearInterval(intervalo);
-        if (!conectado) { alert("Não consegui falar com o Cifras da Missa. Tente de novo."); }
+        if (!conectado) { alert("Não consegui falar com o Músico Católico. Tente de novo."); }
         return;
       }
       try { enviar({ tipo: "ola" }); } catch (x) { return; }
