@@ -13,6 +13,9 @@ Monta o repertório da missa, busca as cifras em vários sites, edita, troca o t
 4. **Editar:** título, artista, cifra, tom (±½ tom) e 1 ou 2 colunas por música, com prévia.
 5. **Baixar:** PDF, Word, TXT ou Excel.
 6. **Modo palco:** botão "Palco" abre as cifras em tela cheia, com rolagem automática e a tela sempre acesa.
+7. **Sugestões do domingo:** aba que lê as sugestões do Músicas para Missa por parte da missa e adiciona com um clique.
+8. **Catálogo:** aba com as músicas do Músicas para Missa em pastas por parte (Entrada, Cordeiro, Santo...), com filtro e ➕. Na primeira vez, logado, clique em **Atualizar catálogo** (~52 chamadas da cota diária). Só guarda título/link/parte; a cifra completa é buscada ao adicionar. Só esse site pode ser varrido por inteiro; Cifras.com.br e CifraClub não listam o acervo.
+9. **Folheto:** campos Paróquia/Celebração aparecem no rodapé do PDF, Word, TXT e prévia.
 
 O CifraClub bloqueia servidores (403); por isso é procurado pelo nome. A versão exata dele continua disponível pelo favorito **Enviar cifra**. Também dá para colar a cifra.
 
