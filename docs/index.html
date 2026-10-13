@@ -184,6 +184,7 @@ ou levar o repertório para outro aparelho (o arquivo também abre no app do com
 <div class="abas" role="tablist">
 <button class="aba ativa" data-aba="aba-um">Um link</button>
 <button class="aba" data-aba="aba-nome">Buscar pelo nome</button>
+<button class="aba" data-aba="aba-artista">Artistas e robô</button>
 <button class="aba" data-aba="aba-sugestoes">Sugestões do domingo</button>
 <button class="aba" data-aba="aba-catalogo">Catálogo</button>
 <button class="aba" data-aba="aba-goc">Grupo de Oração</button>
@@ -209,6 +210,23 @@ ou levar o repertório para outro aparelho (o arquivo também abre no app do com
 <button type="submit" class="primario">🔎 Buscar</button>
 </div>
 <p class="dica">Procura em vários sites ao mesmo tempo, sem precisar de link.</p>
+</form>
+
+<form id="aba-artista" class="painel-aba" hidden>
+<div class="linha">
+<label class="campo">Parte <select class="sel-parte" id="art-parte"></select></label>
+<label class="campo cresce">Artista <input id="art-nome" type="text" placeholder="Ex.: Padre Zezinho" required></label>
+<button type="submit" class="primario">Buscar</button>
+<button type="button" id="art-seguir">Seguir</button>
+</div>
+<p class="dica">Lista as cifras do artista. Com + você adiciona à lista da Missa.</p>
+<div id="art-lista"></div>
+<h3>Robô de cifras</h3>
+<label><input type="checkbox" id="robo-liga"> Ligado: verifica os artistas seguidos ao abrir o site e a cada 6 h</label>
+<div class="linha"><button type="button" id="robo-agora">Rodar agora</button></div>
+<p class="dica" id="robo-estado"></p>
+<div id="robo-seguidos"></div>
+<div id="robo-novas"></div>
 </form>
 
 <form id="aba-sugestoes" class="painel-aba" hidden>
