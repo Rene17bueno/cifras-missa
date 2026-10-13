@@ -242,7 +242,7 @@
   const SEM_ICONE = (() => {
     const EMO = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
     const FICA = "🟢🔴⚪✓✔✕→↗↑↓♩♪♫♬♭♮♯";
-    const alvo = "button, h2, h3, summary, label, b, .dica, .aviso, .aviso-alerta, .badge, a.botao, .tocando, .nao-salvo, .tit small";
+    const alvo = "button, h2, h3, summary, label, b, .dica, .aviso, .aviso-alerta, .badge, a.botao, .tocando, .nao-salvo, .tit small, .info, .tit, p, span";
     const limpa = (s) => s.replace(/➕/g, "+").replace(/➖/g, "−").replace(/[⬆]️?/g, "↑").replace(/[⬇]️?/g, "↓").replace(/❌/g, "✕")
       .replace(EMO, (c) => FICA.includes(c) ? c : "").replace(/ {2,}/g, " ");
     const limpaNo = (v) => { const t = limpa(v); return /^\s*[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(v) && !/^\s*[🟢🔴⚪✓✔✕→↗↑↓♩-♯]/u.test(v) ? t.replace(/^ +/, "") : t; };
