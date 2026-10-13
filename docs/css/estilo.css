@@ -145,6 +145,7 @@ details.partes > summary { cursor: pointer; color: var(--suave); }
 .pagina text { white-space: pre; }
 .p-titulo { font: bold 5.6px Arial, Helvetica, sans-serif; fill: #000; }
 .p-nome { font: 4.2px Arial, Helvetica, sans-serif; fill: #000; }
+.p-rodape { font: 3.2px Arial, Helvetica, sans-serif; fill: #6e6e6e; }
 .p-linha { stroke: #b4b4b4; stroke-width: .25; }
 .p-acorde, .p-marcador, .p-letra { font-family: "Courier New", Courier, monospace; }
 .p-acorde { fill: var(--acorde); font-weight: bold; }
@@ -164,3 +165,7 @@ details.partes > summary { cursor: pointer; color: var(--suave); }
   z-index: 10;
   max-width: calc(100% - 32px);
 }
+
+.sugestoes { list-style: none; margin: 4px 0 10px; padding: 0; }
+.sugestoes li { padding: 2px 0; }
+.sugestoes button { padding: 0 6px; }
