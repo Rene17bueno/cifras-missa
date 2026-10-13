@@ -22,6 +22,15 @@
   ];
   const NOMES_SITE = { cifraclub: "CifraClub", musicasparamissa: "Músicas para Missa", outro: "Outro site" };
   const NOVA_PARTE = "__nova__";
+  const PARTES_TIPO = {
+    "Missa": PARTES_PADRAO,
+    "Grupo de Oração": ["Animação", "Condução", "Espírito Santo", "Adoração", "Final"],
+    "Encontro": ["Acolhida", "Animação", "Louvor", "Partilha", "Adoração", "Envio", "Final"],
+  };
+  const TIPOS = Object.keys(PARTES_TIPO);
+  const tipoAtual = () => (rep && PARTES_TIPO[rep.tipo] ? rep.tipo : "Missa");
+  const chavePartes = () => (tipoAtual() === "Missa" ? CHAVE.partes : CHAVE.partes + "." + tipoAtual());
+  const lerPartes = () => ler(chavePartes(), PARTES_TIPO[tipoAtual()].slice());
   const CHAVE = {
     partes: "cifras.partes",
     atual: "cifras.atual",
@@ -102,9 +111,10 @@
     return true;
   }
 
-  function novoRepertorio(exemplo) {
+  function novoRepertorio(exemplo, tipo = "Missa", nomeBase = "") {
     rep = {
-      nome: nomeLivre(`Missa ${hoje()}`),
+      nome: nomeLivre(nomeBase || `${tipo} ${hoje()}`),
+      tipo,
       musicas: exemplo ? EXEMPLO.map(([p, u]) => novaMusica(p, u)) : [],
     };
     rascunhos = {};
@@ -122,7 +132,7 @@
     if (existente) return existente;
     const posicao = partes.includes(depoisDe) ? partes.indexOf(depoisDe) + 1 : partes.length;
     partes.splice(posicao, 0, nome);
-    gravar(CHAVE.partes, partes);
+    gravar(chavePartes(), partes);
     return nome;
   }
 
@@ -210,6 +220,8 @@
 
   // ---------------------------------------------------------------- Desenho da página
   function render() {
+  partes = lerPartes();
+  document.dispatchEvent(new Event("cm:render"));
     renderRepertorio();
     renderPartes();
     renderLista();
@@ -416,7 +428,7 @@
     if (nome && carregarRepertorio(nome)) { render(); aviso(`Repertório aberto: ${nome}`); }
   });
 
-  $("#btn-novo").addEventListener("click", () => { novoRepertorio(false); render(); });
+  $("#btn-novo").addEventListener("click", () => window.CM.pedirTipo());
 
   $("#btn-excluir").addEventListener("click", () => {
     if (!window.confirm(`Excluir o repertório "${rep.nome}" deste navegador? Isso não pode ser desfeito.`)) return;
@@ -442,6 +454,7 @@
       if (!Array.isArray(dados.musicas)) throw new Error("formato");
       rep = {
         nome: nomeLivre(dados.nome || arquivo.name.replace(/\.json$/i, "")),
+        tipo: PARTES_TIPO[dados.tipo] ? dados.tipo : "Missa",
         musicas: dados.musicas.map((m) => ({ ...m, id: m.id || novoId() })),
       };
       rascunhos = {};
@@ -803,7 +816,7 @@
     if (partes.some((p) => comparavel(p) === comparavel(nome))) { aviso(`A parte "${nome}" já existe.`); return; }
     const depois = $("#nova-parte-depois").value;
     if (depois) parteDaLista(nome, depois);
-    else { partes.unshift(nome.split(/\s+/).join(" ")); gravar(CHAVE.partes, partes); }
+    else { partes.unshift(nome.split(/\s+/).join(" ")); gravar(chavePartes(), partes); }
     $("#nova-parte").value = "";
     render();
   });
@@ -811,13 +824,13 @@
   $("#btn-remover-parte").addEventListener("click", () => {
     const parte = $("#remover-parte").value;
     partes = partes.filter((p) => p !== parte);
-    gravar(CHAVE.partes, partes);
+    gravar(chavePartes(), partes);
     render();
   });
 
   $("#btn-restaurar-partes").addEventListener("click", () => {
-    partes = PARTES_PADRAO.slice();
-    gravar(CHAVE.partes, partes);
+    partes = PARTES_TIPO[tipoAtual()].slice();
+    gravar(chavePartes(), partes);
     render();
   });
 
@@ -1547,4 +1560,25 @@
   carregarCatalogo();
   carregarAcervo();
   carregarGoc();
+  // ---------------------------------------------------------------- API para js/nav.js (menu, tipos e busca inicial)
+  window.CM = {
+    TIPOS,
+    get rep() { return rep; },
+    get partes() { return partes; },
+    get catalogo() { return catalogo; },
+    get goc() { return goc; },
+    tipo: tipoAtual,
+    novo(tipo, nome) { novoRepertorio(false, PARTES_TIPO[tipo] ? tipo : "Missa", nome); render(); },
+    definirTipo(tipo) { if (PARTES_TIPO[tipo]) { rep.tipo = tipo; salvar(); render(); } },
+    adicionar({ parte, url, busca }) {
+      const m = novaMusica(parteDaLista(parte || partes[0]), url || "");
+      if (!url && busca) m.busca = { titulo: busca.titulo, artista: busca.artista || "" };
+      rep.musicas.push(m);
+      verDepois(m);
+      salvar();
+      render();
+      buscarAutomatico();
+      aviso(`Adicionada em ${m.posicao}.`);
+    },
+  };
 })();
