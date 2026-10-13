@@ -342,9 +342,9 @@
           <textarea class="mono" data-campo="cifra" rows="${Math.min(30, linhas)}">${esc(t.cifra)}</textarea>
         </label>
         <div class="linha">
-          <button class="primario" data-acao="salvar" ${mudouEditor(m) ? "" : "disabled"}>💾 Salvar alterações</button>
+          <button class="primario" data-acao="salvar" hidden style="display:none" ${mudouEditor(m) ? "" : "disabled"}>💾 Salvar alterações</button>
           ${r.Original && r.Editado ? '<button data-acao="original">↩️ Voltar ao original</button>' : ""}
-          <span class="nao-salvo" ${mudouEditor(m) ? "" : "hidden"}>⚠️ Alterações não salvas</span>
+          <span class="nao-salvo" ${mudouEditor(m) ? "" : "hidden"}>Salvando…</span><span class="salvo-auto" hidden>✓ Salvo automaticamente</span>
         </div>
         ${htmlTom}
         <div class="linha">
@@ -883,6 +883,25 @@
   }, true);
 
   const temporizadoresPrevia = {};
+  const temporizadoresSalvar = {};
+
+  /** Salva sozinho depois que a pessoa para de digitar (sem redesenhar, para não perder o cursor) */
+  function autoSalvar(m, det) {
+    const t = textosEditor(m);
+    if (!mudouEditor(m) || !t.cifra.trim()) return; // cifra vazia não é salva
+    m.resultado = {
+      ...(m.resultado || {}),
+      Posição: m.posicao, URL: m.url,
+      Música: t.titulo.trim(), Artista: t.artista.trim(), Cifra: t.cifra.trimEnd(),
+      Status: "OK", Erro: "", Editado: true,
+    };
+    delete rascunhos[m.id];
+    salvar();
+    det.querySelector(".nao-salvo").hidden = true;
+    det.querySelector('[data-acao="salvar"]').disabled = true;
+    det.querySelector(".salvo-auto").hidden = false;
+    if (previas.has(m.id)) atualizarPreviaMusica(m);
+  }
   $("#editores").addEventListener("input", (e) => {
     const campo = e.target.dataset.campo;
     if (!campo) return;
@@ -896,6 +915,9 @@
     const mudou = mudouEditor(m);
     det.querySelector('[data-acao="salvar"]').disabled = !mudou;
     det.querySelector(".nao-salvo").hidden = !mudou;
+    det.querySelector(".salvo-auto").hidden = true;
+    clearTimeout(temporizadoresSalvar[m.id]);
+    if (mudou) temporizadoresSalvar[m.id] = setTimeout(() => autoSalvar(m, det), 1200);
     if (previas.has(m.id)) {
       clearTimeout(temporizadoresPrevia[m.id]);
       temporizadoresPrevia[m.id] = setTimeout(() => atualizarPreviaMusica(m), 400);
