@@ -19,13 +19,18 @@
   <aside id="lateral" class="lateral" aria-label="Pastas e repertórios">
     <button id="lat-recolher" class="lat-recolher" type="button" title="Recuar ou ampliar esta barra" aria-label="Recuar ou ampliar a barra lateral">◀</button>
     <div class="lat-abas">
-      <button type="button" class="lat-aba ativa" data-lat="lat-pastas">📁 Pastas</button>
+      <button type="button" class="lat-aba ativa" data-lat="lat-pastas">⛪ Missa</button>
+      <button type="button" class="lat-aba" data-lat="lat-goc">🙏 Oração</button>
       <button type="button" class="lat-aba" data-lat="lat-reps">🔎 Repertórios</button>
     </div>
     <div id="lat-pastas" class="lat-painel">
       <input id="lat-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música">
       <div id="lat-status" class="aviso" hidden><span></span> <button id="lat-parar" type="button">Parar</button></div>
       <div id="lat-lista"></div>
+    </div>
+    <div id="lat-goc" class="lat-painel" hidden>
+      <input id="lat-goc-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música do grupo de oração">
+      <div id="lat-goc-lista"></div>
     </div>
     <div id="lat-reps" class="lat-painel" hidden>
       <input id="lat-rep-filtro" type="search" placeholder="Procurar repertório ou música…" aria-label="Procurar repertório">
@@ -116,7 +121,8 @@
 
       <div id="aba-goc" class="painel-aba" hidden>
         <div class="linha">
-          <label class="campo">Pasta <select id="goc-pasta"></select></label>
+          <label class="campo">Etapa <select id="goc-etapa"></select></label>
+          <label class="campo">Artista <select id="goc-pasta"></select></label>
           <label class="campo cresce">Filtrar pelo nome <input id="goc-filtro" type="search" placeholder="Ex.: rendo, abba"></label>
         </div>
         <p class="dica">Músicas de grupo de oração por artista/comunidade (fonte: cifras.com.br). ↗ abre a cifra no site; ➕ leva título e link para "Colar cifra", onde você cola a cifra copiada.</p>
