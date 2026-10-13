@@ -170,7 +170,7 @@ details.partes > summary { cursor: pointer; color: var(--suave); }
 .lateral { position: fixed; left: 10px; top: 90px; bottom: 10px; width: 205px; overflow: auto; background: var(--cartao);
   border: 1px solid var(--borda); border-radius: var(--raio); padding: 8px; z-index: 5; font-size: .85rem; }
 .lat-abas { display: flex; gap: 2px; margin-bottom: 8px; }
-.lat-aba { flex: 1; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 6px 2px; font-size: .8rem; }
+.lat-aba { flex: 1; border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 6px 1px; font-size: .74rem; white-space: nowrap; }
 .lat-aba.ativa { border-bottom-color: var(--primaria); color: var(--primaria); }
 .lateral input[type=search] { width: 100%; margin-bottom: 6px; }
 .lateral details { margin: 2px 0; }
