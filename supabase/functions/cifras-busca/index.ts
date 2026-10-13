@@ -4,6 +4,8 @@
  * GET /?url=<link da cifra>  ->  {url, titulo, artista, cifra}  ou  {erro}
  * GET /?titulo=<nome>&artista=<nome>  ->  {candidatos: [{url, fonte, pontos}], avisos}
  * GET /?missas=1  ->  {missas: [{slug, titulo, data}]}   (próximas missas do Músicas para Missa)
+ * GET /?catalogo=1  ->  {musicas: [[slug, parte]], pastas: [[slug, parte]]}   (varredura, passo 1)
+ * GET /?pastas=<slug,slug,...>  ->  {pastas: [[slug, [[musica, titulo]]]]}     (varredura, passo 2)
  * GET /?sugestoes=<slug>  ->  {partes: [{parte, itens: [{titulo, url}]}]}
  * Protegida: exige usuário logado (JWT "authenticated"), e-mail na tabela cifras_permitidos,
  * Origin do site publicado e cota diária por usuário (tabela cifras_uso). Assim não vira um proxy aberto.
@@ -270,6 +272,55 @@ async function sugestoesDaMissa(slug) {
   return [{ partes }, 200];
 }
 
+// ---------------------------------------------------------------- Catálogo: varredura do Músicas para Missa por parte da missa
+// Regras pelo nome da música (vale para o que o site não separa em pastas)
+const PARTE_PELO_NOME = [
+  ["Salmo", (w) => w.includes("salmo")],
+  ["Cordeiro", (w) => w.includes("cordeiro")],
+  ["Santo", (w) => (w[0] === "santo" || w.join(" ").includes("santo santo")) && !w.includes("espirito")],
+  ["Ato penitencial", (w) => w.some((x) => ["kyrie", "penitencial", "confesso", "confessemos", "piedade", "compaixao"].includes(x)) || w.join(" ").startsWith("senhor que vieste")],
+  ["Glória", (w) => w[0] === "gloria" || w.join(" ").includes("hino de louvor")],
+  ["Aclamação", (w) => w.includes("aleluia") || w.includes("aclamacao")],
+  ["Ofertório", (w) => w.some((x) => ["ofertorio", "oferendas", "oferenda", "apresentacao", "ofertas"].includes(x))],
+  ["Pai Nosso", (w) => w.join(" ").includes("pai nosso")],
+  ["Amém", (w) => w.includes("amem") || w.includes("doxologia")],
+  ["Entrada", (w) => w.some((x) => ["entrada", "abertura"].includes(x))],
+  ["Final", (w) => w.some((x) => ["final", "despedida", "encerramento"].includes(x))],
+  ["Comunhão", (w) => w.some((x) => ["comunhao", "eucaristia", "comungar"].includes(x))],
+  ["Nossa Senhora", (w) => w.includes("maria") || w.join(" ").includes("nossa senhora")],
+];
+const parteDoNome = (slug) => { const w = palavras(slug); return PARTE_PELO_NOME.find(([, f]) => f(w))?.[0] || "Outras"; };
+
+// Pastas do site que dizem com certeza a parte da missa (as de salmo e aclamação já saem pelo nome)
+const PASTAS_MPM = [["pos-comunhao", "Ação de graças"], ["comunhao", "Comunhão"], ["entrada", "Entrada"], ["ofertorio", "Ofertório"], ["final", "Final"],
+  ["ato", "Ato penitencial"], ["cordeiro", "Cordeiro"], ["santo", "Santo"], ["amem", "Amém"], ["pai-nosso", "Pai Nosso"], ["hino-de-louvor", "Glória"]];
+const parteDaPasta = (pasta) => {
+  const p = palavras(pasta).join("-");
+  return PASTAS_MPM.find(([prefixo]) => p === prefixo || p.startsWith(prefixo + "-"))?.[1] || null;
+};
+
+/** Passo 1: lista todas as músicas do site (com a parte pelo nome) e as pastas a visitar */
+async function catalogoInicial() {
+  const r = await pegar(SITEMAP_MPM);
+  if (!r.ok) return [{ erro: `Músicas para Missa (erro ${r.status})` }, 502];
+  const xml = await r.text();
+  const musicas = [...xml.matchAll(/<loc>[^<]*\/musica\/([^<\/]+)\/?<\/loc>/g)].map((m) => [m[1], parteDoNome(m[1])]);
+  const pastas = [...xml.matchAll(/<loc>[^<]*\/musicas-de\/([^<\/]+)\/?<\/loc>/g)].map((m) => decodeURIComponent(m[1]))
+    .map((slug) => [slug, parteDaPasta(slug)]).filter(([, parte]) => parte);
+  return [{ musicas, pastas }, 200];
+}
+
+/** Passo 2: títulos e músicas de até 12 pastas por vez */
+async function catalogoPastas(lista) {
+  const slugs = lista.split(",").filter((s) => /^[\p{L}\p{N}-]{2,100}$/u.test(s)).slice(0, 12);
+  const resultados = await Promise.allSettled(slugs.map(async (slug) => {
+    const r = await pegar(`${SITE_MPM}/musicas-de/${encodeURIComponent(slug)}/`);
+    if (!r.ok) throw new Error(String(r.status));
+    return [slug, [...(await r.text()).matchAll(/<a href="\/musica\/([^"\/]+)\/?"[^>]*>\s*<h4>([\s\S]*?)<\/h4>/g)].map((m) => [m[1], semTags(m[2])])];
+  }));
+  return [{ pastas: resultados.flatMap((x) => (x.status === "fulfilled" ? [x.value] : [])), falhas: resultados.filter((x) => x.status === "rejected").length }, 200];
+}
+
 Deno.serve(async (request) => {
   const origem = request.headers.get("Origin") || "";
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: cabecalhosCors(origem) });
@@ -286,7 +337,9 @@ Deno.serve(async (request) => {
   }
 
   const parametros = new URL(request.url).searchParams;
-  const [dados, status] = parametros.has("missas") ? await listarMissas()
+  const [dados, status] = parametros.has("catalogo") ? await catalogoInicial()
+    : parametros.has("pastas") ? await catalogoPastas(parametros.get("pastas") || "")
+    : parametros.has("missas") ? await listarMissas()
     : parametros.has("sugestoes") ? await sugestoesDaMissa(parametros.get("sugestoes") || "")
     : parametros.has("titulo") ? await procurar(parametros.get("titulo") || "", parametros.get("artista") || "")
     : await buscar(parametros.get("url") || "");
