@@ -200,3 +200,11 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 }
 @media (min-width: 1000px) { .catalogo { column-width: 340px; column-gap: 28px; } .catalogo li { break-inside: avoid; } }
 @media (max-width: 520px) { .cta { width: 100%; } .topo h1 { font-size: 1.9rem; } }
+
+/* Abas de normas */
+.normas details { border-top: 1px solid #e3e8f2; padding: 12px 0; }
+.normas summary { cursor: pointer; font-weight: 700; color: var(--marinho, #1b2f55); }
+.normas p { line-height: 1.6; margin: 8px 0; }
+.normas .fonte { font-size: .85rem; color: #51607a; overflow-wrap: anywhere; }
+.normas .fonte a { color: #1d4e9e; }
+@media (min-width: 861px) { .menu-item { padding-inline: 9px; } }
