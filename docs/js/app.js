@@ -615,7 +615,7 @@
   });
 
   // Grupo de Oração: etapas do grupo (tabela cifras_goc, coluna etapa) e artista
-  const ETAPAS = ["Acolhida e Animação", "Louvor", "Clamor ao Espírito Santo", "Pregação e Escuta", "Agradecimento e Encerramento", "Outras"];
+  const ETAPAS = ["Animação", "Condução", "Espírito Santo", "Adoração", "Final", "Outras"];
   let goc = null;
   const statusGoc = (t) => { $("#goc-status").hidden = !t; $("#goc-status").textContent = t || ""; };
 
@@ -669,7 +669,31 @@
     const det = e.target;
     if (det.open && !det.querySelector("ul")) { renderLateralGoc(); }
   }, true);
-  const levarGoc = (e) => {
+  // Sugestão: uma sequência típica do grupo, sorteada entre as músicas de cada pasta
+  const SEQUENCIA = ["Animação", "Animação", "Condução", "Espírito Santo", "Adoração", "Adoração", "Final"];
+  let sugestao = [];
+  const sortear = (etapa, fora) => {
+    const opcoes = (goc || []).filter((m) => m.etapa === etapa && !fora.includes(m.url));
+    return opcoes[Math.floor(Math.random() * opcoes.length)];
+  };
+  function renderSugestao() {
+    $("#goc-sug").innerHTML = sugestao.length
+      ? `<ol class="catalogo">${sugestao.map((m, i) => m ? `<li><b>${esc(SEQUENCIA[i])}</b>: ${linhaGoc(m).replace(/^<li>|<\/li>$/g, "")} <button type="button" data-sorteio="${i}" title="Trocar esta música">🔄</button></li>` : `<li><b>${esc(SEQUENCIA[i])}</b>: sem músicas</li>`).join("")}</ol>`
+      : "";
+  }
+  $("#goc-sugerir").addEventListener("click", async () => {
+    await carregarGoc();
+    if (!goc) return;
+    sugestao = [];
+    SEQUENCIA.forEach((etapa) => sugestao.push(sortear(etapa, sugestao.filter(Boolean).map((m) => m.url))));
+    renderSugestao();
+  });
+  $("#goc-sug").addEventListener("click", (e) => {
+    const r = e.target.closest("button[data-sorteio]");
+    if (r) { const i = +r.dataset.sorteio; sugestao[i] = sortear(SEQUENCIA[i], sugestao.filter(Boolean).map((m) => m.url)) || sugestao[i]; renderSugestao(); return; }
+    levarGoc(e);
+  });
+  function levarGoc(e) {
     const b = e.target.closest("button[data-goc]");
     if (!b) return;
     $("#colar-titulo").value = b.dataset.titulo;
@@ -678,7 +702,7 @@
     document.querySelector('.aba[data-aba="aba-colar"]').click();
     if (b.dataset.etapa) { const parte = parteDaLista(b.dataset.etapa); renderPartes(); $("#colar-parte").value = parte; }
     $("#colar-cifra").focus();
-  };
+  }
   $("#goc-lista").addEventListener("click", levarGoc);
   $("#lat-goc-lista").addEventListener("click", levarGoc);
 
@@ -1487,6 +1511,7 @@
   document.querySelectorAll(".lat-aba").forEach((aba) => aba.addEventListener("click", () => {
     document.querySelectorAll(".lat-aba").forEach((a) => a.classList.toggle("ativa", a === aba));
     document.querySelectorAll(".lat-painel").forEach((p) => { p.hidden = p.id !== aba.dataset.lat; });
+    if (aba.dataset.lat === "lat-goc") carregarGoc().then(renderLateralGoc);
   }));
   $("#lat-abrir").addEventListener("click", () => $("#lateral").classList.toggle("aberta"));
 
