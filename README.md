@@ -7,7 +7,7 @@ Monta o repertório da missa, busca as cifras em vários sites, edita, troca o t
 
 ## Como usar
 
-1. **Entrar:** na seção "Conta", crie a conta com um e-mail autorizado e confirme o e-mail. A busca automática só funciona logado.
+1. **Entrar (opcional):** a busca e o catálogo funcionam sem login. A conta só guarda seus repertórios na nuvem; o botão "Criar conta" está desligado (`CRIAR_CONTA = false` em `docs/js/nuvem.js`).
 2. **Adicionar músicas:** escolha a parte da missa e cole o link, ou use a aba **Buscar pelo nome**. Em "Vários links", um por linha: `Parte da missa | link`.
 3. **Buscar:** a função procura ao mesmo tempo no Músicas para Missa, no Cifras.com.br e na web, e testa as melhores opções até achar uma com acordes. Dá para trocar por outra no editor.
 4. **Editar:** título, artista, cifra, tom (±½ tom) e 1 ou 2 colunas por música, com prévia.
@@ -23,7 +23,7 @@ O CifraClub bloqueia servidores (403); por isso é procurado pelo nome. A versã
 
 - **Biblioteca:** toda cifra achada fica guardada; da próxima vez vem do banco, sem ir aos sites.
 - **Repertórios na nuvem:** salvos por conta (Row Level Security: cada um só vê os seus) e sincronizados entre aparelhos. Sem login, ficam só no navegador; **Salvar cópia (.json)** faz backup.
-- **Função `cifras-busca`** (`supabase/functions/cifras-busca/`): exige login, e-mail na tabela `cifras_permitidos`, origem do site e cota diária por usuário (`cifras_uso`). Só aceita links `https` de sites públicos.
+- **Função `cifras-busca`** (`supabase/functions/cifras-busca/`): aberta, mas só aceita chamadas vindas do site (Origin), com cota diária compartilhada (`cifras_uso_geral`, 2000/dia). Só aceita links `https` de sites públicos.
 - **Para autorizar outro e-mail:** `insert into cifras_permitidos (email) values ('pessoa@exemplo.com');` no SQL do projeto.
 
 ## Offline
