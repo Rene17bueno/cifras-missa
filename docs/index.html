@@ -101,8 +101,9 @@
 <button id="btn-organizar">🔀 Organizar na ordem das partes</button>
 <button id="btn-limpar" class="perigo">🗑️ Limpar lista</button>
 </div>
+<p class="dica">Clique no nome da música para ver a cifra e editar (acordes na linha de cima da letra).</p>
 <div id="lista-musicas"></div>
-<p id="resumo-inicio" class="dica" hidden><span id="resumo-inicio-txt"></span> <button type="button" data-ir="cifras">🎼 Revisar e baixar →</button></p>
+<p id="resumo-inicio" class="dica" hidden><span id="resumo-inicio-txt"></span> <button type="button" data-ir="cifras">🎼 Trazer cifras e baixar →</button></p>
 </section>
 
 </div>
@@ -243,7 +244,7 @@ ou levar o repertório para outro aparelho (o arquivo também abre no app do com
 <li><b>Link de qualquer site:</b> a cifra é buscada direto do link. Se não der certo, a música é procurada pelo nome.</li>
 <li><b>CifraClub</b> bloqueia buscas automáticas, então a música é procurada pelo nome em outros sites.</li>
 <li><b>Busca pelo nome:</b> pesquisa ao mesmo tempo no Músicas para Missa, no Cifras.com.br e na web.
-Só vale cifra com acordes. Confira a versão em Revisar e editar, abaixo.</li>
+Só vale cifra com acordes. Confira a versão clicando na música, na lista do Início.</li>
 </ul>
 <div id="botoes-sites" class="linha"></div>
 <p id="progresso-busca" class="aviso" hidden></p>
@@ -268,15 +269,8 @@ de uma vez (inclusive substituindo as que vieram do Músicas para Missa).</li>
 <button id="btn-copiar-marcador">📋 Copiar código do favorito</button>
 </details>
 </details>
-<p class="dica">Também dá para colar a cifra direto no editor, em Revisar e editar.</p>
+<p class="dica">Também dá para colar a cifra direto no editor: na lista do Início, clique na música.</p>
 <p id="resumo-cifras" class="dica"></p>
-</section>
-
-<section class="cartao">
-<h2>Revisar e editar</h2>
-<p class="dica">Abra uma música, altere o que precisar e clique em <b>Salvar alterações</b>.
-Mantenha os acordes na linha de cima da letra, com espaços para alinhar.</p>
-<div id="editores"></div>
 </section>
 
 <section class="cartao">
@@ -347,6 +341,12 @@ Mantenha os acordes na linha de cima da letra, com espaços para alinhar.</p>
 <button type="submit" value="criar" class="primario">Criar</button>
 </div>
 </form>
+</dialog>
+
+<!-- Ver e editar a cifra de uma música (o app desenha os editores aqui dentro) -->
+<dialog id="dlg-musica">
+<div class="dlg-topo"><b>Cifra da música</b><span id="dlg-aviso" class="dica" hidden></span><button type="button" id="dlg-musica-fechar" class="icone" aria-label="Fechar">✕</button></div>
+<div id="editores"></div>
 </dialog>
 
 <div id="aviso-flutuante" class="toast" hidden></div>
