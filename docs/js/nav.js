@@ -249,7 +249,7 @@
     const varre = (raiz) => {
       const els = raiz.nodeType === 1 ? [raiz, ...raiz.querySelectorAll(alvo)] : [];
       for (const el of els) {
-        if (!el.matches(alvo) || el.closest("pre, textarea, .previa-musica, .editor, [contenteditable]")) continue;
+        if (!el.matches(alvo) || el.closest("pre, textarea, .previa-musica, [contenteditable]")) continue;
         const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
         for (let n; (n = w.nextNode());) { const t = limpaNo(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }
       }
