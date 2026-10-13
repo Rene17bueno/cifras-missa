@@ -49,6 +49,7 @@
         <button class="aba ativa" data-aba="aba-um">Um link</button>
         <button class="aba" data-aba="aba-nome">Buscar pelo nome</button>
         <button class="aba" data-aba="aba-sugestoes">Sugestões do domingo</button>
+        <button class="aba" data-aba="aba-catalogo">Catálogo</button>
         <button class="aba" data-aba="aba-varios">Vários links de uma vez</button>
         <button class="aba" data-aba="aba-colar">Colar cifra</button>
       </div>
@@ -82,6 +83,17 @@
         <p id="sug-erro" class="erro" hidden></p>
         <div id="sug-lista"></div>
       </form>
+
+      <div id="aba-catalogo" class="painel-aba" hidden>
+        <div class="linha">
+          <label class="campo">Pasta <select id="cat-parte"></select></label>
+          <label class="campo cresce">Filtrar pelo nome <input id="cat-filtro" type="search" placeholder="Ex.: kyrie, shalom"></label>
+          <button type="button" id="cat-varrer">🔄 Atualizar catálogo</button>
+        </div>
+        <p class="dica">Todas as músicas do Músicas para Missa, separadas por parte da missa. ➕ adiciona à lista e busca a cifra. A varredura pode levar alguns minutos (precisa estar logado).</p>
+        <p id="cat-status" class="aviso" hidden></p>
+        <div id="cat-lista"></div>
+      </div>
 
       <form id="aba-varios" class="painel-aba" hidden>
         <label class="campo">Um por linha, no formato <code>Parte da missa | link</code> (ou só o link)
