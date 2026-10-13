@@ -30,12 +30,11 @@ const PASTA = `<a href="/musica/a-barca"> <h4>A BARCA</h4><p>letra</p></a><a hre
 
 let usarMapa = false;
 let falhar = new Set();
-let autorizado = true, cota = true;
+let cota = true;
 globalThis.fetch = async (url) => {
   url = String(url);
   const R = (corpo, tipo = "text/html") => new Response(corpo, { status: 200, headers: { "content-type": tipo } });
-  if (url.includes("banco.test/rest/v1/rpc/cifras_autorizado")) return R(JSON.stringify(autorizado), "application/json");
-  if (url.includes("banco.test/rest/v1/rpc/cifras_consumir_cota")) return R(JSON.stringify(cota), "application/json");
+  if (url.includes("banco.test/rest/v1/rpc/cifras_cota_aberta")) return R(JSON.stringify(cota), "application/json");
   for (const f of falhar) if (url.includes(f)) return new Response("x", { status: 500 });
   if (url.endsWith("musicasparamissa.com.br/")) return R(HOME);
   if (url.includes("/sugestoes-para/")) return R(PAGINA);
@@ -58,15 +57,13 @@ const chamar = async (qs, { origem = ORIGEM, auth = USUARIO, metodo = "GET" } = 
   return [r.status, r.status === 204 ? null : await r.json(), r.headers];
 };
 
-test.beforeEach(() => { usarMapa = false; falhar = new Set(); autorizado = true; cota = true; });
+test.beforeEach(() => { usarMapa = false; falhar = new Set(); cota = true; });
 
-test("acesso: exige login, e-mail autorizado, origem do site e cota", async () => {
-  assert.equal((await chamar({ titulo: "Kyrie" }, { auth: "" }))[0], 401);
-  assert.equal((await chamar({ titulo: "Kyrie" }, { auth: "Bearer " + jwt("anon") }))[0], 401);
+test("acesso: aberto sem login, mas só pela origem do site e com cota global", async () => {
+  assert.equal((await chamar({ titulo: "Kyrie" }, { auth: "" }))[0], 200);
   assert.equal((await chamar({ titulo: "Kyrie" }, { origem: "https://outro.site" }))[0], 403);
-  autorizado = false;
-  assert.equal((await chamar({ titulo: "Kyrie" }))[0], 403);
-  autorizado = true; cota = false;
+  assert.equal((await chamar({ titulo: "Kyrie" }, { origem: "" }))[0], 403);
+  cota = false;
   assert.equal((await chamar({ titulo: "Kyrie" }))[0], 429);
   const [st, , cab] = await chamar({}, { metodo: "OPTIONS", auth: "" });
   assert.equal(st, 204);
@@ -128,7 +125,6 @@ test("sugestões: lista as próximas missas e separa as músicas por parte da mi
     { parte: "Glória", itens: [{ titulo: "GLÓRIA (Capella)", url: "https://musicasparamissa.com.br/musica/gloria-capella/" }] },
   ]);
   assert.equal((await chamar({ sugestoes: "../../etc" }))[0], 400);
-  assert.equal((await chamar({ sugestoes: "29o-domingo" }, { auth: "" }))[0], 401);
 });
 
 test("catálogo: classifica pelo nome, escolhe as pastas certas e lê os títulos delas", async () => {
