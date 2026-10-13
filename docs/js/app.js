@@ -562,6 +562,7 @@
     try {
       statusCat("Lendo a lista de músicas do site…");
       const { musicas, pastas } = await chamarBusca({ catalogo: "1" });
+      const chave = (s) => s.replace(/%20/g, " "); // alguns endereços do site têm espaço
       const votos = {}, titulos = {}; // votos[musica][parte]: a pasta do site manda sobre o palpite pelo nome
       for (let i = 0; i < pastas.length; i += 12) {
         statusCat(`Varrendo as pastas do site: ${Math.min(i + 12, pastas.length)} de ${pastas.length}…`);
@@ -570,17 +571,17 @@
         for (const [slug, itens] of lidas) {
           const parte = lote.find(([s]) => s === slug)[1];
           for (const [musica, titulo] of itens) {
-            titulos[musica] = titulo;
-            const v = (votos[musica] ||= {});
+            titulos[chave(musica)] = titulo;
+            const v = (votos[chave(musica)] ||= {});
             v[parte] = (v[parte] || 0) + 1;
           }
         }
       }
       const melhor = (v) => Object.entries(v).sort((a, b) => b[1] - a[1])[0][0];
       const linhas = musicas.map(([slug, parteNome]) => ({
-        url: `https://musicasparamissa.com.br/musica/${slug}/`,
-        titulo: (titulos[slug] || humanizar(slug)).slice(0, 200),
-        parte: votos[slug] ? melhor(votos[slug]) : parteNome,
+        url: `https://musicasparamissa.com.br/musica/${slug.replace(/ /g, "%20")}/`,
+        titulo: (titulos[chave(slug)] || humanizar(slug)).slice(0, 200),
+        parte: votos[chave(slug)] ? melhor(votos[chave(slug)]) : parteNome,
       }));
       for (let i = 0; i < linhas.length; i += 500) {
         statusCat(`Guardando no catálogo: ${Math.min(i + 500, linhas.length)} de ${linhas.length}…`);
