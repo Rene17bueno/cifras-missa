@@ -50,3 +50,16 @@ details.editor[hidden] { display: none; }
 
 @media (max-width: 759px) { .menu-item { padding: 12px 11px; font-size: .9rem; } }
 .salvar-inicio{align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid var(--borda)}
+
+/* Barra lateral removida: Missa e Grupo de Oração viraram telas do menu */
+.lateral, .lat-abrir { display: none !important; }
+body, body.lat-recolhida { padding-left: 0 !important; }
+.vista .lat-painel input[type=search] { width: 100%; margin-bottom: 8px; background: #f7f9fc; }
+.vista .lat-painel details { margin: 2px 0; }
+.vista .lat-painel summary { cursor: pointer; font-weight: 600; padding: 6px; border-radius: 8px; }
+.vista .lat-painel summary:hover { background: #f1f4fa; }
+.vista .lat-painel details[open] > summary { color: var(--marinho); background: #f1f4fa; }
+.vista .lat-painel summary small { color: var(--suave); font-weight: 400; }
+.vista .lat-painel ul { list-style: none; margin: 2px 0 6px; padding: 0; }
+.vista .lat-painel li { padding: 3px 0; line-height: 1.3; }
+.vista .lat-painel li button { padding: 0 6px; margin-right: 4px; }
