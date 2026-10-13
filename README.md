@@ -1,114 +1,43 @@
 # Cifras da Missa
 
-Extrai cifras do CifraClub e do Músicas para Missa, permite editar e gera arquivos em Word, PDF, texto ou Excel, em 1 ou 2 colunas.
+Monta o repertório da missa, busca as cifras em vários sites, edita, troca o tom e gera Word, PDF, TXT e Excel em 1 ou 2 colunas.
+É só uma página HTML/CSS/JavaScript (GitHub Pages) + Supabase. Não precisa instalar nada.
 
 **Site:** <https://rene17bueno.github.io/cifras-missa/>
 
-## Instalação
+## Como usar
 
-```bash
-pip install -r requirements.txt
-playwright install chromium
-```
+1. **Entrar:** na seção "Conta", crie a conta com um e-mail autorizado e confirme o e-mail. A busca automática só funciona logado.
+2. **Adicionar músicas:** escolha a parte da missa e cole o link, ou use a aba **Buscar pelo nome**. Em "Vários links", um por linha: `Parte da missa | link`.
+3. **Buscar:** a função procura ao mesmo tempo no Músicas para Missa, no Cifras.com.br e na web, e testa as melhores opções até achar uma com acordes. Dá para trocar por outra no editor.
+4. **Editar:** título, artista, cifra, tom (±½ tom) e 1 ou 2 colunas por música, com prévia.
+5. **Baixar:** PDF, Word, TXT ou Excel.
+6. **Modo palco:** botão "Palco" abre as cifras em tela cheia, com rolagem automática e a tela sempre acesa.
 
-Precisa do Microsoft Edge ou do Google Chrome instalado (o CifraClub bloqueia o navegador do Playwright).
+O CifraClub bloqueia servidores (403); por isso é procurado pelo nome. A versão exata dele continua disponível pelo favorito **Enviar cifra**. Também dá para colar a cifra.
 
-## Uso
+## Nuvem (Supabase)
 
-### App (recomendado)
+- **Biblioteca:** toda cifra achada fica guardada; da próxima vez vem do banco, sem ir aos sites.
+- **Repertórios na nuvem:** salvos por conta (Row Level Security: cada um só vê os seus) e sincronizados entre aparelhos. Sem login, ficam só no navegador; **Salvar cópia (.json)** faz backup.
+- **Função `cifras-busca`** (`supabase/functions/cifras-busca/`): exige login, e-mail na tabela `cifras_permitidos`, origem do site e cota diária por usuário (`cifras_uso`). Só aceita links `https` de sites públicos.
+- **Para autorizar outro e-mail:** `insert into cifras_permitidos (email) values ('pessoa@exemplo.com');` no SQL do projeto.
 
-```bash
-python -m streamlit run app/app_cifras.py
-```
+## Offline
 
-Abre em <http://localhost:8501>. Na página:
-
-1. **Adicionar músicas**: escolha a parte da missa e cole o link. Na aba "Vários links de uma vez", cole um por linha no formato `Parte da missa | link`. Deixe o link vazio para digitar a cifra à mão.
-2. **Organizar**: use ⬆️ ⬇️ ❌ em cada música ou **Organizar na ordem da missa**.
-3. **Extrair**: **Extrair todas** ou **Extrair só as que faltam** (para tentar de novo as que deram erro).
-4. **Revisar e editar**: abra a música, altere título, artista ou cifra e clique em **Salvar alterações**. **Voltar ao original** desfaz as edições. Em **Colunas desta música**, escolha 1 ou 2 colunas só para ela (ou "Padrão"), e ligue **Prévia desta música** para ver como fica. Em **Tom**, escolha o tom (C, C#, D, D#, E, F, F#, G, G#, A, A#, B) ou use **➖ ½ tom** / **➕ ½ tom**; a cifra guardada continua no tom original e **Tom original** desfaz.
-5. **Baixar**: escolha o layout padrão (1 ou 2 colunas) e o tamanho da fonte, veja a prévia do PDF e baixe em Word (.docx), PDF, Texto (.txt) ou Excel (.xlsx).
-
-### Repertórios
-
-Na barra lateral: dê um nome ao repertório (ex.: "Missa 28-09"), salve, abra um salvo ou comece um novo.
-Tudo é salvo automaticamente em `repertorios/<nome>.json`, e o app reabre o último repertório usado.
-
-### 2 colunas
-
-O layout nunca separa a linha de acordes da letra de baixo e só divide uma estrofe entre colunas se ela não couber inteira.
-A última página tem as colunas equilibradas. No modo automático, a fonte é a maior que faz a música caber no menor número de páginas.
-Linhas longas demais para a coluna são quebradas num ponto em que acorde e letra têm espaço, mantendo cada acorde sobre a mesma sílaba.
-
-### Linha de comando
-
-```bash
-python scripts/cifras_missa.py                              # gera cifras_missa.xlsx
-python scripts/cifras_missa.py --formatos docx pdf txt xlsx # escolhe os formatos
-python scripts/cifras_missa.py --formatos pdf --colunas 2    # PDF em 2 colunas
-```
-
-A lista de músicas da linha de comando fica em `MUSICAS`, no começo de `scripts/cifras_missa.py`.
-
-### Página HTML (GitHub Pages, sem servidor)
-
-A pasta `docs/` tem a mesma ferramenta como página HTML, que roda direto no navegador e pode ser publicada
-de graça no GitHub Pages (Settings → Pages → branch `master`, pasta `/docs`). Também abre com dois cliques
-em `docs/index.html`.
-
-- Tem as mesmas funções do app: lista com partes da missa, editor, troca de tom, 1 ou 2 colunas por música,
-  prévia e downloads em PDF, Word, TXT e Excel (com o mesmo layout do app).
-- **Link de qualquer site:** a cifra é buscada pela função `cifras-busca` do Supabase (projeto `painel-ot-demo`,
-  endereço `https://tuciclxzfcbsaauphryk.supabase.co/functions/v1/cifras-busca`), que só responde ao site publicado. Só vale página com cifra
-  em `<pre>` e com acordes (página só com letra é recusada).
-- **Busca pelo nome** (aba "Buscar pelo nome", ou link do CifraClub, ou link que não deu certo): o Worker procura a música
-  ao mesmo tempo no **Músicas para Missa**, no **Cifras.com.br** e na **web** (DuckDuckGo, qualquer outro site),
-  testa as melhores opções até achar uma com acordes e deixa trocar por outra no editor. Se uma fonte cair, as outras seguem.
-- **CifraClub:** bloqueia qualquer servidor (erro 403), por isso é sempre procurado pelo nome. A versão exata do CifraClub
-  continua disponível pelo favorito **🎵 Enviar cifra**. Também dá para colar a cifra.
-- Os repertórios ficam salvos no navegador. **Salvar cópia (.json)** faz backup e leva para outro aparelho;
-  o arquivo é o mesmo formato do app do computador (abre nos dois).
-
-### Site online (Streamlit Community Cloud)
-
-O app pode ser publicado de graça em <https://share.streamlit.io>, a partir deste repositório
-(arquivo principal: `app/app_cifras.py`). O `packages.txt` instala as bibliotecas de sistema do navegador
-e o app baixa o Chromium na primeira extração.
-
-Diferenças em relação ao computador:
-
-- O CifraClub costuma bloquear a extração vinda de servidores; copie a cifra do site e cole no editor.
-  O Músicas para Missa funciona normalmente.
-- Os repertórios ficam no servidor: quem acessar o site pode vê-los, e eles podem sumir quando o site reinicia.
-  Baixe os arquivos para guardar.
+A página é um PWA (instalável): depois do primeiro acesso, abre sem internet com os repertórios salvos.
 
 ## Estrutura
 
 ```text
-app/app_cifras.py        interface Streamlit
-scripts/cifras_missa.py  extração das cifras (Playwright)
-scripts/layout.py        organização em colunas/páginas sem separar acorde e letra
-scripts/transpor.py      troca de tom dos acordes mantendo o alinhamento com a letra
-scripts/exportar.py      geração de Word, PDF, TXT e Excel
-repertorios/             repertórios salvos pelo app (criado automaticamente)
-packages.txt             bibliotecas de sistema para o navegador no Streamlit Cloud
-docs/                    versão página HTML (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS)
-supabase/functions/cifras-busca/  função do Supabase que busca as cifras para a página (publicada no projeto `painel-ot-demo`)
+docs/                             a página (index.html, js/, css/, vendor/ com jsPDF, docx e ExcelJS, sw.js, manifest)
+supabase/functions/cifras-busca/  função de busca (Deno)
+tests/                            testes da função (node --test tests/*.test.mjs)
+.github/workflows/testes.yml      roda os testes a cada push
 ```
 
-## Sites suportados
+## Testes
 
-- **CifraClub** (cifraclub.com.br)
-- **Músicas para Missa** (musicasparamissa.com.br)
-- **Cifras.com.br** (só na página HTML, pela busca por nome)
-- Outros sites: tenta pegar o maior bloco `<pre>` da página
-
-## Problemas comuns
-
-**Erro 502**: o CifraClub às vezes falha; o programa tenta 3 vezes. Se continuar, abra o link no navegador. Se também não abrir, o link está errado ou a música foi removida.
-
-**Erro 403 / "bloqueou o acesso"**: confira se o Edge ou o Chrome está instalado.
-
-**"O site demorou demais"**: a página não carregou ou mudou de estrutura. Tente de novo; se persistir, os seletores em `scripts/cifras_missa.py` precisam ser atualizados.
-
-**Aparece um ícone do Edge na barra de tarefas durante a extração**: é normal. A janela fica fora da tela e fecha no final.
+```bash
+node --test tests/*.test.mjs
+```
