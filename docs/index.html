@@ -7,28 +7,34 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎵</text></svg>">
 <link rel="stylesheet" href="css/estilo.css">
 <link rel="stylesheet" href="css/nav.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&display=swap">
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#1f3a5f">
 </head>
 <body>
 <header class="topo">
-<div class="topo-in">
-<h1>🎵 Cifras da Missa</h1>
-<p class="sub">Monte o repertório da missa, do grupo de oração ou de um encontro, troque o tom e baixe as cifras prontas.</p>
-</div>
-</header>
-
 <nav class="menu" aria-label="Seções">
 <div class="menu-in">
-<button type="button" class="menu-item ativa" data-ir="inicio">🏠 Início</button>
-<button type="button" class="menu-item" data-ir="missa">⛪ Missa</button>
-<button type="button" class="menu-item" data-ir="oracao">🙏 Grupo de Oração</button>
-<button type="button" class="menu-item" data-ir="repertorios">📁 Repertórios</button>
-<button type="button" class="menu-item" data-ir="adicionar">➕ Adicionar música</button>
-<button type="button" class="menu-item" data-ir="cifras">🎼 Cifras</button>
-<button type="button" class="menu-item" data-ir="conta">☁️ Conta</button>
+<button type="button" class="marca" data-ir="inicio">Cifras da Missa</button>
+<div class="menu-links">
+<button type="button" class="menu-item ativa" data-ir="inicio">Início</button>
+<button type="button" class="menu-item" data-ir="missa">Missa</button>
+<button type="button" class="menu-item" data-ir="oracao">Grupo de Oração</button>
+<button type="button" class="menu-item" data-ir="repertorios">Repertórios</button>
+<button type="button" class="menu-item" data-ir="adicionar">Adicionar música</button>
+<button type="button" class="menu-item" data-ir="cifras">Cifras</button>
+<button type="button" class="menu-item" data-ir="conta">Conta</button>
+</div>
 </div>
 </nav>
+<div class="topo-in">
+<h1>Monte o repertório e baixe as cifras prontas</h1>
+<p class="sub">Missa, grupo de oração ou encontro. Troque o tom, escolha 1 ou 2 colunas e salve em Word, PDF ou Excel.</p>
+<button type="button" id="hero-novo" class="cta">Novo repertório</button>
+</div>
+</header>
 
 <button id="lat-abrir" class="lat-abrir" type="button">📁 Pastas</button>
 <aside id="lateral" class="lateral" aria-label="Pastas e repertórios">
