@@ -238,6 +238,28 @@
   window.addEventListener("scroll", fixarMenu, { passive: true });
   fixarMenu();
 
+  // Sem ícones: tira emojis dos textos de botões/títulos (inclusive os gerados depois) e usa só letras
+  const SEM_ICONE = (() => {
+    const EMO = /[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE0F}\u{200D}]/gu;
+    const FICA = "🟢🔴⚪✓✔✕→↗↑↓♩♪♫♬♭♮♯";
+    const alvo = "button, h2, h3, summary, label, b, .dica, .aviso, .aviso-alerta, .badge, a.botao, .tocando, .nao-salvo, .tit small";
+    const limpa = (s) => s.replace(/➕/g, "+").replace(/➖/g, "−").replace(/[⬆]️?/g, "↑").replace(/[⬇]️?/g, "↓").replace(/❌/g, "✕")
+      .replace(EMO, (c) => FICA.includes(c) ? c : "").replace(/ {2,}/g, " ");
+    const limpaNo = (v) => { const t = limpa(v); return /^\s*[\u{1F000}-\u{1FAFF}\u{2190}-\u{21FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u.test(v) && !/^\s*[🟢🔴⚪✓✔✕→↗↑↓♩-♯]/u.test(v) ? t.replace(/^ +/, "") : t; };
+    const varre = (raiz) => {
+      const els = raiz.nodeType === 1 ? [raiz, ...raiz.querySelectorAll(alvo)] : [];
+      for (const el of els) {
+        if (!el.matches(alvo) || el.closest("pre, textarea, .previa-musica, .editor, [contenteditable]")) continue;
+        const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+        for (let n; (n = w.nextNode());) { const t = limpaNo(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }
+      }
+    };
+    let agendado = false;
+    new MutationObserver(() => { if (agendado) return; agendado = true; requestAnimationFrame(() => { agendado = false; varre(document.body); }); })
+      .observe(document.body, { childList: true, subtree: true, characterData: true });
+    varre(document.body);
+  })();
+
   // Barra lateral logo abaixo do cabeçalho/menu (acompanha a rolagem)
   let raf = 0;
   const ajustarLateral = () => {
