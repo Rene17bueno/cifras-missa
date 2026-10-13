@@ -181,6 +181,9 @@ details.partes > summary { cursor: pointer; color: var(--suave); }
 .lat-rep { display: block; width: 100%; text-align: left; margin: 2px 0; padding: 5px 7px; }
 .lat-rep small { color: var(--suave); display: block; }
 .lat-abrir { display: none; }
+.lat-baixar { float: right; padding: 0 4px; font-size: .75rem; }
+.lateral summary small { color: var(--suave); font-weight: 400; }
+#lat-status { margin-bottom: 6px; font-size: .8rem; padding: 6px 8px; }
 .lat-recolher { position: absolute; top: 6px; right: 6px; padding: 0 7px; font-size: .8rem; z-index: 1; }
 .lat-abas { margin-right: 28px; }
 .lat-rep-linha { display: flex; gap: 2px; align-items: stretch; margin: 2px 0; }
