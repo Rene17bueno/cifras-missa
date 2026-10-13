@@ -68,3 +68,7 @@ body, body.lat-recolhida { padding-left: 0 !important; }
 .barra-musica { position: sticky; top: 57px; z-index: 1; background: #fff; border-bottom: 1px solid var(--borda); padding: 6px 0; margin-bottom: 8px; }
 .barra-musica .linha { margin: 4px 0; align-items: center; }
 .barra-musica .tocando { margin: 4px 0; }
+
+/* Prévia grande na janela da música: uma página por linha */
+dialog#dlg-musica .previa { grid-template-columns: 1fr; justify-items: center; }
+dialog#dlg-musica .previa .pagina { width: min(100%, 860px); height: auto; }
