@@ -614,7 +614,8 @@
     if (botao) adicionarDoCatalogo(botao);
   });
 
-  // Grupo de Oração: lista por artista/comunidade (tabela cifras_goc)
+  // Grupo de Oração: etapas do grupo (tabela cifras_goc, coluna etapa) e artista
+  const ETAPAS = ["Acolhida e Animação", "Louvor", "Clamor ao Espírito Santo", "Pregação e Escuta", "Agradecimento e Encerramento", "Outras"];
   let goc = null;
   const statusGoc = (t) => { $("#goc-status").hidden = !t; $("#goc-status").textContent = t || ""; };
 
@@ -622,40 +623,64 @@
     if (goc) return;
     statusGoc("Carregando…");
     try {
-      const linhas = [];
+      goc = [];
       for (let i = 0; ; i += 1000) {
-        const lote = await Nuvem.rest(`cifras_goc?select=url,pasta,titulo&order=titulo&limit=1000&offset=${i}`);
-        linhas.push(...lote);
+        const lote = await Nuvem.rest(`cifras_goc?select=url,pasta,titulo,etapa&order=titulo&limit=1000&offset=${i}`);
+        goc.push(...lote);
         if (lote.length < 1000) break;
       }
-      goc = {};
-      for (const l of linhas) (goc[l.pasta] ||= []).push(l);
-      $("#goc-pasta").innerHTML = Object.keys(goc).sort((a, b) => a.localeCompare(b, "pt-BR")).map((n) => `<option value="${esc(n)}">${esc(n)} (${goc[n].length})</option>`).join("");
+      const conta = (campo, nome) => goc.filter((m) => m[campo] === nome).length;
+      $("#goc-etapa").innerHTML = `<option value="">Todas (${goc.length})</option>` + ETAPAS.map((n) => `<option value="${esc(n)}">${esc(n)} (${conta("etapa", n)})</option>`).join("");
+      $("#goc-pasta").innerHTML = `<option value="">Todos</option>` + [...new Set(goc.map((m) => m.pasta))].sort((a, b) => a.localeCompare(b, "pt-BR")).map((n) => `<option value="${esc(n)}">${esc(n)} (${conta("pasta", n)})</option>`).join("");
       statusGoc("");
-    } catch (erro) { statusGoc("Não consegui carregar: " + erro.message); return; }
+    } catch (erro) { statusGoc("Não consegui carregar: " + erro.message); goc = null; return; }
     listarGoc();
+    renderLateralGoc();
   }
 
+  const linhaGoc = (m) => `<li><button type="button" data-goc="${esc(m.url)}" data-titulo="${esc(m.titulo)}" data-artista="${esc(m.pasta)}" data-etapa="${esc(m.etapa || "")}" title="Levar para Colar cifra">➕</button> <a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" title="Abrir a cifra no site">↗</a> ${esc(m.titulo)} <small>${esc(m.pasta)}</small></li>`;
+
   function listarGoc() {
-    const pasta = $("#goc-pasta").value, filtro = comparavel($("#goc-filtro").value);
-    const todas = ((goc || {})[pasta] || []).filter((m) => !filtro || comparavel(m.titulo).includes(filtro));
+    const etapa = $("#goc-etapa").value, pasta = $("#goc-pasta").value, filtro = comparavel($("#goc-filtro").value);
+    const todas = (goc || []).filter((m) => (!etapa || m.etapa === etapa) && (!pasta || m.pasta === pasta) && (!filtro || comparavel(m.titulo).includes(filtro)));
     $("#goc-lista").innerHTML = todas.length
-      ? `<ul class="catalogo">` + todas.slice(0, 100).map((m) => `<li><button type="button" data-goc="${esc(m.url)}" data-titulo="${esc(m.titulo)}" data-artista="${esc(pasta)}" title="Levar para Colar cifra">➕</button> <a href="${esc(m.url)}" target="_blank" rel="noopener noreferrer" title="Abrir a cifra no site">↗</a> ${esc(m.titulo)}</li>`).join("") + "</ul>"
+      ? `<ul class="catalogo">` + todas.slice(0, 100).map(linhaGoc).join("") + "</ul>"
         + (todas.length > 100 ? `<p class="dica">Mostrando 100 de ${todas.length}; use o filtro.</p>` : "")
       : "";
   }
 
-  $("#goc-pasta").addEventListener("change", listarGoc);
+  function renderLateralGoc() {
+    const el = $("#lat-goc-lista");
+    if (!goc) { el.innerHTML = '<p class="dica">Abra a aba "Grupo de Oração" em Adicionar músicas para carregar.</p>'; return; }
+    const filtro = comparavel($("#lat-goc-filtro").value);
+    const abertas = new Set([...el.querySelectorAll("details[open]")].map((d) => d.dataset.etapa));
+    el.innerHTML = ETAPAS.map((etapa) => {
+      const itens = goc.filter((m) => m.etapa === etapa && (!filtro || comparavel(m.titulo).includes(filtro)));
+      if (!itens.length) return "";
+      const aberta = filtro || abertas.has(etapa);
+      return `<details data-etapa="${esc(etapa)}" ${aberta ? "open" : ""}><summary>🙏 ${esc(etapa)} (${itens.length})</summary>${aberta ? `<ul class="catalogo">${itens.slice(0, 100).map(linhaGoc).join("")}</ul>` : ""}</details>`;
+    }).join("") || '<p class="dica">Nenhuma música encontrada.</p>';
+  }
+
+  for (const id of ["#goc-etapa", "#goc-pasta"]) $(id).addEventListener("change", listarGoc);
   $("#goc-filtro").addEventListener("input", listarGoc);
-  $("#goc-lista").addEventListener("click", (e) => {
+  $("#lat-goc-filtro").addEventListener("input", renderLateralGoc);
+  $("#lat-goc-lista").addEventListener("toggle", (e) => {
+    const det = e.target;
+    if (det.open && !det.querySelector("ul")) { renderLateralGoc(); }
+  }, true);
+  const levarGoc = (e) => {
     const b = e.target.closest("button[data-goc]");
     if (!b) return;
     $("#colar-titulo").value = b.dataset.titulo;
     $("#colar-artista").value = b.dataset.artista;
     $("#colar-url").value = b.dataset.goc;
     document.querySelector('.aba[data-aba="aba-colar"]').click();
+    if (b.dataset.etapa) { const parte = parteDaLista(b.dataset.etapa); renderPartes(); $("#colar-parte").value = parte; }
     $("#colar-cifra").focus();
-  });
+  };
+  $("#goc-lista").addEventListener("click", levarGoc);
+  $("#lat-goc-lista").addEventListener("click", levarGoc);
 
   // Sugestões do domingo (Músicas para Missa, pela função de busca)
   let missasCarregadas = false;
@@ -1469,4 +1494,5 @@
   render();
   carregarCatalogo();
   carregarAcervo();
+  carregarGoc();
 })();
