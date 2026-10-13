@@ -35,4 +35,17 @@ dialog#dlg-novo h2 { margin: 0 0 4px; font-size: 1.2rem; color: var(--marinho); 
 /* Barra lateral começa abaixo do cabeçalho azul e do menu (valor ajustado por nav.js) */
 @media (min-width: 760px) { .lateral { top: var(--lat-top, 12px); } }
 
+/* Janela com a cifra da música: prévia + edição */
+.musica .info { cursor: pointer; }
+.musica .info b { color: var(--marinho-2); }
+.musica .info:hover b { text-decoration: underline; }
+dialog#dlg-musica { border: 1px solid var(--borda); border-radius: var(--raio); padding: 0; width: min(980px, 96vw); max-height: 92vh; overflow: auto; box-shadow: 0 12px 40px rgba(31,58,95,.3); color: var(--texto); }
+dialog#dlg-musica::backdrop { background: rgba(31,58,95,.45); }
+.dlg-topo { position: sticky; top: 0; z-index: 1; display: flex; gap: 12px; align-items: center; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--borda); }
+.dlg-topo b { flex: none; color: var(--marinho); }
+.dlg-topo .dica { flex: 1; margin: 0; color: var(--ok); }
+.dlg-topo .icone { margin-left: auto; }
+dialog#dlg-musica #editores { padding: 10px 14px 16px; }
+details.editor[hidden] { display: none; }
+
 @media (max-width: 759px) { .menu-item { padding: 12px 11px; font-size: .9rem; } }
