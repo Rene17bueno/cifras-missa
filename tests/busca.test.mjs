@@ -19,6 +19,12 @@ const DDG = `<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fw
 <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.youtube.com%2Fwatch%3Fv%3D1">yt</a>
 <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fwww.cifraclub.com.br%2Fcapella%2Fkyrie%2F">cc</a>`;
 
+const HOME = `<a href="/sugestoes-para/29o-domingo/">29º Domingo do Tempo Comum – Ano A</a><h3>18/10/2026</h3><a href="/sugestoes-para/finados/"> FINADOS </a><h3>02/11/2026</h3><a href="/sugestoes-para/29o-domingo/"></a>`;
+const PAGINA = `<a href="#accorside-1">Canto de Abertura - Sugestões</a><a href="#accorside-2">Primeira Leitura (Is 1)</a><a href="#accorside-3">Hino de Louvor - Sugestões</a>
+<div id="accorside-1"><ul><li><a href="/musica/vamos-celebrar/"> VAMOS CELEBRAR (Shalom) </a></li></ul></div>
+<div id="accorside-2"><ul><li><a href="/musica/nao-entra/">leitura</a></li></ul></div>
+<div id="accorside-3"><ul><li><a href="/musica/gloria-capella/">GLÓRIA (Capella)</a></li></ul></div>`;
+
 let falhar = new Set();
 let autorizado = true, cota = true;
 globalThis.fetch = async (url) => {
@@ -27,6 +33,8 @@ globalThis.fetch = async (url) => {
   if (url.includes("banco.test/rest/v1/rpc/cifras_autorizado")) return R(JSON.stringify(autorizado), "application/json");
   if (url.includes("banco.test/rest/v1/rpc/cifras_consumir_cota")) return R(JSON.stringify(cota), "application/json");
   for (const f of falhar) if (url.includes(f)) return new Response("x", { status: 500 });
+  if (url.endsWith("musicasparamissa.com.br/")) return R(HOME);
+  if (url.includes("/sugestoes-para/")) return R(PAGINA);
   if (url.includes("sitemap.xml")) return R(SITEMAP, "application/xml");
   if (url.includes("cifras.com.br/api/search")) return R(JSON.stringify(API), "application/json");
   if (url.includes("duckduckgo")) return R(DDG);
@@ -102,4 +110,18 @@ test("uma fonte fora do ar não derruba as outras; todas fora = 502; nome vazio 
   assert.equal((await chamar({ titulo: "Kyrie" }))[0], 502);
   falhar = new Set();
   assert.equal((await chamar({ titulo: "  " }))[0], 400);
+});
+
+test("sugestões: lista as próximas missas e separa as músicas por parte da missa", async () => {
+  let [st, d] = await chamar({ missas: "1" });
+  assert.equal(st, 200);
+  assert.deepEqual(d.missas, [{ slug: "29o-domingo", titulo: "29º Domingo do Tempo Comum – Ano A", data: "18/10/2026" }, { slug: "finados", titulo: "FINADOS", data: "02/11/2026" }]);
+  [st, d] = await chamar({ sugestoes: "29o-domingo" });
+  assert.equal(st, 200);
+  assert.deepEqual(d.partes, [
+    { parte: "Entrada", itens: [{ titulo: "VAMOS CELEBRAR (Shalom)", url: "https://musicasparamissa.com.br/musica/vamos-celebrar/" }] },
+    { parte: "Glória", itens: [{ titulo: "GLÓRIA (Capella)", url: "https://musicasparamissa.com.br/musica/gloria-capella/" }] },
+  ]);
+  assert.equal((await chamar({ sugestoes: "../../etc" }))[0], 400);
+  assert.equal((await chamar({ sugestoes: "29o-domingo" }, { auth: "" }))[0], 401);
 });
