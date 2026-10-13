@@ -7,8 +7,8 @@
  * GET /?catalogo=1  ->  {musicas: [[slug, parte]], pastas: [[slug, parte]]}   (varredura, passo 1)
  * GET /?pastas=<slug,slug,...>  ->  {pastas: [[slug, [[musica, titulo]]]]}     (varredura, passo 2)
  * GET /?sugestoes=<slug>  ->  {partes: [{parte, itens: [{titulo, url}]}]}
- * Protegida: exige usuário logado (JWT "authenticated"), e-mail na tabela cifras_permitidos,
- * Origin do site publicado e cota diária por usuário (tabela cifras_uso). Assim não vira um proxy aberto.
+ * Acesso aberto (sem login), mas só do Origin do site publicado e com cota diária compartilhada
+ * (tabela cifras_uso_geral). Assim não vira um proxy aberto.
  */
 
 // O CifraClub responde 403 para qualquer servidor; é preciso procurar a música em outro site
@@ -65,7 +65,7 @@ function extrairCifra(html, url) {
   };
 }
 
-const LIMITE_DIARIO = 400; // buscas por usuário por dia
+const LIMITE_DIARIO = 2000; // buscas por dia, somando todo mundo
 
 function cabecalhosCors(origem) {
   return ORIGENS_PERMITIDAS.includes(origem) ? {
@@ -86,22 +86,11 @@ function resposta(dados, status, origem) {
   return new Response(JSON.stringify(dados), { status, headers: cabecalhos });
 }
 
-/** Papel do token (o gateway do Supabase já conferiu a assinatura; aqui só distinguimos "anon" de "authenticated") */
-function papelDoToken(authorization) {
-  try {
-    const jwt = (authorization || "").replace(/^Bearer\s+/i, "");
-    const corpo = JSON.parse(atob(jwt.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
-    return corpo.role;
-  } catch {
-    return null;
-  }
-}
-
-/** Chama uma função do banco com o token do próprio usuário (as regras de acesso valem para ele) */
-async function chamarBanco(nome, authorization, corpo) {
+/** Chama uma função do banco com a chave pública (anon) */
+async function chamarBanco(nome, corpo) {
   const r = await fetch(`${Deno.env.get("SUPABASE_URL")}/rest/v1/rpc/${nome}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", apikey: Deno.env.get("SUPABASE_ANON_KEY"), Authorization: authorization },
+    headers: { "Content-Type": "application/json", apikey: Deno.env.get("SUPABASE_ANON_KEY"), Authorization: "Bearer " + Deno.env.get("SUPABASE_ANON_KEY") },
     body: JSON.stringify(corpo),
     signal: AbortSignal.timeout(ESPERA_MS),
   });
@@ -327,13 +316,10 @@ Deno.serve(async (request) => {
   if (request.method !== "GET") return resposta({ erro: "Use GET." }, 405, origem);
   if (!ORIGENS_PERMITIDAS.includes(origem)) return resposta({ erro: "Origem não permitida." }, 403, origem);
 
-  const authorization = request.headers.get("Authorization") || "";
-  if (papelDoToken(authorization) !== "authenticated") return resposta({ erro: "Entre na sua conta para buscar." }, 401, origem);
   try {
-    if (!(await chamarBanco("cifras_autorizado", authorization, {}))) return resposta({ erro: "Este e-mail não está autorizado." }, 403, origem);
-    if (!(await chamarBanco("cifras_consumir_cota", authorization, { limite: LIMITE_DIARIO }))) return resposta({ erro: "Cota diária de buscas atingida." }, 429, origem);
+    if (!(await chamarBanco("cifras_cota_aberta", { limite: LIMITE_DIARIO }))) return resposta({ erro: "Cota diária de buscas atingida." }, 429, origem);
   } catch {
-    return resposta({ erro: "Não consegui conferir sua conta agora. Tente de novo." }, 503, origem);
+    return resposta({ erro: "Não consegui conferir a cota agora. Tente de novo." }, 503, origem);
   }
 
   const parametros = new URL(request.url).searchParams;
