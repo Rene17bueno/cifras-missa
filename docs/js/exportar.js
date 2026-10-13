@@ -22,6 +22,9 @@
   const cifraDe = (item) =>
     item.Status === "OK" ? item.Cifra : `Não foi possível extrair: ${item.Erro}\n${item.URL}`;
 
+  /** Paróquia e celebração, definidas na página (rodapé de cada página) */
+  const cabecalhoFolheto = () => window.Exportar?.cabecalho || "";
+
   const colunasDe = (item, padrao) => item.Colunas || padrao;
 
   /** Largura de cada coluna e altura disponível para a cifra (mm) */
@@ -51,7 +54,7 @@
 
   // ------------------------------------------------------------------- TXT
   function exportarTxt(dados, colunas = 1) {
-    const blocos = ["CIFRAS DA MISSA", ""];
+    const blocos = ["CIFRAS DA MISSA", ...(cabecalhoFolheto() ? [cabecalhoFolheto()] : []), ""];
     for (const item of dados) {
       blocos.push("=".repeat(60), item.Posição.toUpperCase(), nome(item), "=".repeat(60), "");
       if (colunasDe(item, colunas) === 1) {
@@ -120,6 +123,16 @@
         });
       });
     }
+    const rodape = cabecalhoFolheto();
+    if (rodape) {
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(110, 110, 110);
+      for (let p = 1; p <= pdf.getNumberOfPages(); p++) {
+        pdf.setPage(p);
+        pdf.text(latin1(rodape), PAGINA_L / 2, PAGINA_A - 6, { align: "center" });
+      }
+    }
     return pdf.output("blob");
   }
 
@@ -150,6 +163,7 @@
             partes.push(`<text x="${x}" y="${(topo + (k + 0.8) * alturaLinha).toFixed(2)}" font-size="${fonte.toFixed(3)}" class="${classe}">${esc(texto)}</text>`);
           });
         });
+        if (cabecalhoFolheto()) partes.push(`<text x="${PAGINA_L / 2}" y="${PAGINA_A - 6}" text-anchor="middle" class="p-rodape">${esc(cabecalhoFolheto())}</text>`);
         svgs.push(`<svg viewBox="0 0 ${PAGINA_L} ${PAGINA_A}" xmlns="http://www.w3.org/2000/svg" class="pagina">${partes.join("")}</svg>`);
       });
     }
@@ -212,6 +226,11 @@
       });
     });
 
+    const rodape = cabecalhoFolheto();
+    if (rodape) {
+      const footers = { default: new D.Footer({ children: [new D.Paragraph({ alignment: D.AlignmentType.CENTER, children: [new D.TextRun({ text: rodape, font: "Arial", size: 18, color: "6E6E6E" })] })] }) };
+      secoes.forEach((s) => { s.footers = footers; });
+    }
     const documento = new D.Document({ sections: secoes });
     return D.Packer.toBlob(documento);
   }

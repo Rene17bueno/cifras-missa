@@ -191,6 +191,7 @@
   }
 
   const colunasPadrao = () => Number(opcoes.colunas) || 2;
+  const cabecalhoFolheto = () => [opcoes.paroquia, opcoes.missa].filter(Boolean).join(" - ");
   const tamanhoFonte = () => (opcoes.fonte ? Number(opcoes.fonte) : null);
 
   // ---------------------------------------------------------------- Avisos
@@ -376,6 +377,9 @@
     if (!itens.length) return;
     document.querySelector(`input[name="layout-padrao"][value="${colunasPadrao()}"]`).checked = true;
     $("#fonte").value = opcoes.fonte || "";
+    $("#folheto-paroquia").value = opcoes.paroquia || "";
+    $("#folheto-missa").value = opcoes.missa || "";
+    Exportar.cabecalho = cabecalhoFolheto();
     const info = [];
     if (itens.length < rep.musicas.length) info.push(`Serão incluídas ${itens.length} de ${rep.musicas.length} músicas (as que têm cifra).`);
     const proprias = rep.musicas.filter((m) => m.colunas && comCifra(m)).map((m) => m.posicao);
@@ -450,6 +454,7 @@
   document.querySelectorAll(".aba").forEach((aba) => aba.addEventListener("click", () => {
     document.querySelectorAll(".aba").forEach((a) => a.classList.toggle("ativa", a === aba));
     document.querySelectorAll(".painel-aba").forEach((p) => { p.hidden = p.id !== aba.dataset.aba; });
+    if (aba.dataset.aba === "aba-sugestoes") carregarMissas();
   }));
 
   document.querySelectorAll("select.sel-parte").forEach((sel) => sel.addEventListener("change", () => {
@@ -494,6 +499,52 @@
     m.busca = { titulo, artista: $("#nome-artista").value.trim() };
     rep.musicas.push(m);
     $("#nome-titulo").value = $("#nome-artista").value = "";
+    salvar();
+    render();
+    buscarAutomatico();
+  });
+
+  // Sugestões do domingo (Músicas para Missa, pela função de busca)
+  let missasCarregadas = false;
+  const erroSug = (texto) => { $("#sug-erro").hidden = !texto; $("#sug-erro").textContent = texto || ""; };
+
+  async function carregarMissas() {
+    if (missasCarregadas) return;
+    erroSug("");
+    try {
+      const { missas } = await chamarBusca({ missas: "1" });
+      $("#sug-missa").innerHTML = missas.map((m) => `<option value="${esc(m.slug)}" data-rotulo="${esc([m.titulo, m.data].filter(Boolean).join(" - "))}">${esc(m.titulo)}${m.data ? " (" + esc(m.data) + ")" : ""}</option>`).join("")
+        || '<option value="">Nenhuma missa listada</option>';
+      missasCarregadas = missas.length > 0;
+    } catch (erro) {
+      $("#sug-missa").innerHTML = '<option value="">—</option>';
+      erroSug("Não consegui carregar as missas: " + erro.message);
+    }
+  }
+
+  $("#aba-sugestoes").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const sel = $("#sug-missa");
+    if (!sel.value) return;
+    erroSug("");
+    $("#sug-lista").textContent = "Buscando…";
+    try {
+      const { partes: grupos } = await chamarBusca({ sugestoes: sel.value });
+      $("#sug-lista").innerHTML = grupos.map((g) => `<h4>${esc(g.parte)}</h4><ul class="sugestoes">` + g.itens.map((i) =>
+        `<li><button type="button" data-parte="${esc(g.parte)}" data-url="${esc(i.url)}" title="Adicionar à lista">➕</button> ${esc(i.titulo)}</li>`).join("") + "</ul>").join("")
+        || "Nenhuma sugestão encontrada para essa missa.";
+      if (!opcoes.missa) { opcoes.missa = sel.selectedOptions[0].dataset.rotulo; gravar(CHAVE.opcoes, opcoes); renderBaixar(); }
+    } catch (erro) {
+      $("#sug-lista").textContent = "";
+      erroSug("Não consegui buscar as sugestões: " + erro.message);
+    }
+  });
+
+  $("#sug-lista").addEventListener("click", (e) => {
+    const botao = e.target.closest("button[data-url]");
+    if (!botao) return;
+    rep.musicas.push(novaMusica(parteDaLista(botao.dataset.parte), botao.dataset.url));
+    botao.disabled = true;
     salvar();
     render();
     buscarAutomatico();
@@ -684,6 +735,14 @@
     gravar(CHAVE.opcoes, opcoes);
     render();
   });
+
+  for (const [id, campo] of [["#folheto-paroquia", "paroquia"], ["#folheto-missa", "missa"]]) {
+    $(id).addEventListener("change", (e) => {
+      opcoes[campo] = e.target.value.trim();
+      gravar(CHAVE.opcoes, opcoes);
+      render();
+    });
+  }
 
   document.querySelectorAll(".botoes-baixar button").forEach((botao) => botao.addEventListener("click", async () => {
     const formato = botao.dataset.formato;
