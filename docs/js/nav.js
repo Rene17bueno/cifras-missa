@@ -73,7 +73,32 @@
       + (achados.length > LIMITE ? `<p class="dica">Mostrando ${LIMITE} de ${achados.length}. Refine a busca.</p>` : "");
   }
 
-  $("#busca-q").addEventListener("input", () => { tentativas = 0; desenhar(); });
+  // Busca no texto das cifras que já estão guardadas no Supabase (acervo do Músicas para Missa e do Grupo de Oração)
+  $("#busca-res").insertAdjacentHTML("afterend", '<div id="busca-letra"></div>');
+  let letras = [], seqLetra = 0, tLetra = 0;
+  async function buscarLetra() {
+    const q = $("#busca-q").value.trim(), el = $("#busca-letra"), eu = ++seqLetra;
+    letras = [];
+    if (q.length < 3 || /^https?:\/\//i.test(q) || typeof Nuvem === "undefined") { el.innerHTML = ""; return; }
+    el.innerHTML = '<p class="dica">⏳ Procurando também na letra das cifras guardadas…</p>';
+    const padrao = "*" + q.replace(/[*%,()]/g, " ").split(/\s+/).filter(Boolean).join("*") + "*";
+    const ler = (t) => Nuvem.rest(`${t}?select=url,titulo,artista&cifra=ilike.${encodeURIComponent(padrao)}&limit=15`).catch(() => []);
+    const [a, g] = await Promise.all([ler("cifras_acervo"), ler("cifras_goc_cifras")]);
+    if (eu !== seqLetra) return; // chegou depois de uma busca mais nova
+    const vistos = new Set();
+    letras = [...a, ...g].filter((l) => !vistos.has(l.url) && vistos.add(l.url));
+    const tem = (l) => CM.rep.musicas.some((m) => m.url === l.url);
+    el.innerHTML = letras.length
+      ? '<p class="dica"><b>Também aparece na letra de:</b></p><ul class="resultados">' + letras.map((l, i) =>
+        `<li><button type="button" class="primario" data-l="${i}" ${tem(l) ? "disabled" : ""}>${tem(l) ? "✓ Na lista" : "➕ Adicionar"}</button><span class="tit"><b>${esc(l.titulo)}</b> <small>${esc(l.artista || "")}</small></span></li>`).join("") + "</ul>"
+      : '<p class="dica">Nada na letra das cifras já guardadas (a busca na letra só vê cifras que já foram trazidas antes).</p>';
+  }
+  $("#busca-letra").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-l]"), l = b && letras[+b.dataset.l];
+    if (l) CM.adicionar({ parte: $("#busca-parte").value, url: l.url, busca: { titulo: l.titulo, artista: l.artista || "" } });
+  });
+
+  $("#busca-q").addEventListener("input", () => { tentativas = 0; desenhar(); clearTimeout(tLetra); tLetra = setTimeout(buscarLetra, 500); });
   $("#busca-res").addEventListener("click", (e) => {
     const b = e.target.closest("button");
     if (!b) return;
@@ -137,6 +162,16 @@
   const volta = () => { if (/^#conectar/.test(location.hash)) ir("cifras"); };
   window.addEventListener("hashchange", volta);
   volta();
+
+  // Barra lateral logo abaixo do cabeçalho/menu (acompanha a rolagem)
+  let raf = 0;
+  const ajustarLateral = () => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(() => document.documentElement.style.setProperty("--lat-top", Math.max(12, Math.round($(".menu").getBoundingClientRect().bottom) + 10) + "px"));
+  };
+  window.addEventListener("scroll", ajustarLateral, { passive: true });
+  window.addEventListener("resize", ajustarLateral);
+  ajustarLateral();
 
   sincronizar();
 })();
