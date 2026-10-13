@@ -182,3 +182,8 @@ h1, h2, h3, .menu, .cta, button.primario, .badge { font-family: var(--fonte-titu
   .marca { font-size: 1.25rem; }
   .menu.fixa .marca { display: none; }
 }
+
+/* Botões e títulos de seção com a mesma letra do menu (sem ícones) */
+main button:not(.icone), main .botao, dialog button:not(.icone), main summary, .tocando { font-family: var(--fonte-titulo); font-weight: 600; font-size: .8rem; letter-spacing: .05em; text-transform: uppercase; }
+main button.icone, dialog button.icone { font-family: var(--fonte-titulo); font-weight: 700; font-size: 1rem; }
+main h2 { text-transform: uppercase; letter-spacing: .04em; font-size: 1.05rem; }
