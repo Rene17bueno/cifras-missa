@@ -48,6 +48,7 @@
       <div class="abas" role="tablist">
         <button class="aba ativa" data-aba="aba-um">Um link</button>
         <button class="aba" data-aba="aba-nome">Buscar pelo nome</button>
+        <button class="aba" data-aba="aba-sugestoes">Sugestões do domingo</button>
         <button class="aba" data-aba="aba-varios">Vários links de uma vez</button>
         <button class="aba" data-aba="aba-colar">Colar cifra</button>
       </div>
@@ -70,6 +71,16 @@
           <button type="submit" class="primario">🔎 Buscar</button>
         </div>
         <p class="dica">Procura em vários sites ao mesmo tempo, sem precisar de link.</p>
+      </form>
+
+      <form id="aba-sugestoes" class="painel-aba" hidden>
+        <div class="linha">
+          <label class="campo cresce">Missa <select id="sug-missa"><option value="">Carregando…</option></select></label>
+          <button type="submit" class="primario">💡 Ver sugestões</button>
+        </div>
+        <p class="dica">Músicas indicadas pelo Músicas para Missa para cada parte da celebração (precisa estar logado). ➕ adiciona à lista e já busca a cifra.</p>
+        <p id="sug-erro" class="erro" hidden></p>
+        <div id="sug-lista"></div>
       </form>
 
       <form id="aba-varios" class="painel-aba" hidden>
@@ -180,6 +191,14 @@
               <option value="">Automático</option>
               <option>8</option><option>9</option><option>10</option><option>11</option><option>12</option>
             </select>
+          </label>
+        </div>
+        <div class="linha">
+          <label class="campo cresce">Paróquia / comunidade (no rodapé do PDF, Word e TXT)
+            <input id="folheto-paroquia" type="text" maxlength="80" placeholder="Ex.: Paróquia São José">
+          </label>
+          <label class="campo cresce">Celebração
+            <input id="folheto-missa" type="text" maxlength="100" placeholder="Ex.: 29º Domingo do Tempo Comum - 18/10/2026">
           </label>
         </div>
         <p id="info-baixar" class="dica"></p>
