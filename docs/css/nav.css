@@ -2,7 +2,7 @@
 .vista[hidden] { display: none; }
 
 .menu { position: sticky; top: 0; z-index: 4; background: #fff; border-bottom: 1px solid var(--borda); box-shadow: 0 2px 8px rgba(31,58,95,.06); }
-.menu-in { max-width: 1100px; margin: 0 auto; padding: 0 12px; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
+.menu-in { max-width: 1240px; margin: 0 auto; padding: 0 12px; display: flex; gap: 2px; overflow-x: auto; scrollbar-width: none; }
 .menu-in::-webkit-scrollbar { display: none; }
 .menu-item { border: 0; border-bottom: 3px solid transparent; border-radius: 0; background: none; padding: 13px 14px; font-weight: 600; color: var(--suave); }
 .menu-item:hover:not(:disabled) { box-shadow: none; color: var(--marinho-2); border-color: transparent; }
@@ -164,7 +164,7 @@ h1, h2, h3, .menu, .cta, button.primario, .badge { font-family: var(--fonte-titu
 .marca:hover:not(:disabled) { color: var(--ouro); box-shadow: none; border-color: transparent; }
 .menu-links { display: flex; align-items: center; gap: var(--sp-1); overflow-x: auto; scrollbar-width: none; }
 .menu-links::-webkit-scrollbar { display: none; }
-.menu-item { background: none; border: 0; border-radius: 12px; min-height: 44px; padding: 0 16px; color: #fff; font-family: var(--fonte-titulo); font-weight: 600; font-size: .86rem; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; box-shadow: none; }
+.menu-item { background: none; border: 0; border-radius: 12px; min-height: 44px; padding: 0 12px; color: #fff; font-family: var(--fonte-titulo); font-weight: 600; font-size: .86rem; letter-spacing: .06em; text-transform: uppercase; white-space: nowrap; box-shadow: none; }
 .menu-item:hover:not(:disabled) { background: rgba(255,255,255,.14); color: #fff; border: 0; box-shadow: none; }
 .menu-item.ativa { background: var(--ouro); color: #10203a; border: 0; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
 .menu-item.ativa:hover:not(:disabled) { background: #d8b45f; color: #10203a; }
