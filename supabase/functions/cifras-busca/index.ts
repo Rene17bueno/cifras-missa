@@ -3,6 +3,7 @@
  * Busca de cifras para a página HTML (Supabase Edge Function "cifras-busca", Deno).
  * GET /?url=<link da cifra>  ->  {url, titulo, artista, cifra}  ou  {erro}
  * GET /?titulo=<nome>&artista=<nome>  ->  {candidatos: [{url, fonte, pontos}], avisos}
+ * GET /?artista=<nome>  ->  {musicas: [{titulo, artista, url}]}   (cifras do artista no Cifras.com.br)
  * GET /?missas=1  ->  {missas: [{slug, titulo, data}]}   (próximas missas do Músicas para Missa)
  * GET /?catalogo=1  ->  {musicas: [[slug, parte]], pastas: [[slug, parte]]}   (varredura, passo 1)
  * GET /?pastas=<slug,slug,...>  ->  {pastas: [[slug, [[musica, titulo]]]]}     (varredura, passo 2)
@@ -65,6 +66,19 @@ function extrairCifra(html, url) {
   };
 }
 
+/** Banana Cifras: a página vem sem cifra; ela carrega de static.bananacifra.com/json/tab.js?id=<tab_id> */
+async function extrairBanana(html, url) {
+  const m = html.match(/songdata=(\{[^<]*?\})<\/script>/);
+  if (!m) return null;
+  const d = JSON.parse(m[1]);
+  if (!Number.isInteger(d.tab_id)) return null;
+  const r = await pegar(`https://static.bananacifra.com/json/tab.js?id=${d.tab_id}`, { Accept: "application/json" });
+  if (!r.ok) return null;
+  const cifra = String((await r.json()).content || "").replace(/\r\n?/g, "\n");
+  if (cifra.trim().length < 20 || !temAcordes(cifra)) return null;
+  return { url, titulo: String(d.track_name || "").trim(), artista: String(d.artist_name || "").trim(), cifra };
+}
+
 const LIMITE_DIARIO = 2000; // buscas por dia, somando todo mundo
 
 function cabecalhosCors(origem) {
@@ -122,7 +136,8 @@ async function buscar(link) {
       status = r.status;
       if (r.ok) {
         if (!/text|html/i.test(r.headers.get("content-type") || "")) return [{ erro: "A cifra não foi encontrada nessa página (não é uma página de site)." }, 404];
-        const dados = extrairCifra(await r.text(), alvo.toString());
+        const html = await r.text();
+        const dados = /(^|\.)bananacifras\.com$/.test(host) ? await extrairBanana(html, alvo.toString()) : extrairCifra(html, alvo.toString());
         return dados ? [dados, 200] : [{ erro: "A cifra não foi encontrada nessa página (sem acordes)." }, 404];
       }
       if (status === 404) return [{ erro: "Página não encontrada (404). Confira o link." }, 404];
@@ -139,7 +154,8 @@ async function buscar(link) {
 // O CifraClub bloqueia servidores; então procuramos a música pelo nome, ao mesmo tempo, em:
 //   1. Músicas para Missa (lista de todas as músicas do site, o sitemap)
 //   2. Cifras.com.br (busca do próprio site)
-//   3. Busca na web (DuckDuckGo): qualquer outro site que tenha a cifra
+//   3. Banana Cifras (busca do próprio site)
+//   4. Busca na web (DuckDuckGo): qualquer outro site que tenha a cifra
 // Cada fonte pode falhar sozinha sem derrubar as outras.
 const SITEMAP_MPM = "https://musicasparamissa.com.br/sitemap.xml";
 
@@ -178,6 +194,22 @@ async function deCifrasComBr(titulo, artista) {
   }));
 }
 
+// Banana Cifras: a busca pede a "versão" que está embutida na página /search
+let versaoBanana = "";
+async function deBananaCifras(titulo, artista) {
+  if (!versaoBanana) {
+    const p = await pegar("https://www.bananacifras.com/search");
+    versaoBanana = (await p.text()).match(/"version":"([a-f0-9]{32})"/)?.[1] || "";
+  }
+  const r = await pegar("https://search.bananacifra.com/searchapi/song?" + new URLSearchParams({ v: versaoBanana, BR: "1", q: `${titulo} ${artista}`.trim() }), { Accept: "application/json" });
+  if (!r.ok) { versaoBanana = ""; throw new Error(`Banana Cifras (erro ${r.status})`); }
+  // cada item: [id, slugMusica, nomeMusica, slugArtista, nomeArtista, ...]
+  return (await r.json()).map(([, musica, , banda]) => ({
+    url: `https://www.bananacifras.com/cifra/c/${banda}/${musica}`,
+    pontos: pontuar(titulo, artista, `${musica} ${banda}`),
+  }));
+}
+
 // Páginas que nunca têm cifra em texto
 const SITES_IGNORADOS = /(^|\.)(youtube\.com|youtu\.be|spotify\.com|facebook\.com|instagram\.com|deezer\.com|wikipedia\.org|letras\.mus\.br|vagalume\.com\.br)$/;
 
@@ -191,7 +223,7 @@ async function daWeb(titulo, artista) {
       const host = hostDe(alvo);
       if (alvo.protocol !== "https:" || !hostPublico(host) || bloqueado(host) || SITES_IGNORADOS.test(host)) return [];
       const pontos = pontuar(titulo, artista, alvo.pathname);
-      // -30: sites desconhecidos ficam atrás dos dois sites especializados
+      // -30: sites desconhecidos ficam atrás dos sites especializados
       return [{ url: alvo.origin + alvo.pathname, pontos: pontos === null ? null : pontos - 30 }];
     } catch {
       return [];
@@ -199,10 +231,17 @@ async function daWeb(titulo, artista) {
   });
 }
 
-const FONTES = [deMusicasParaMissa, deCifrasComBr, daWeb];
+const FONTES = [deMusicasParaMissa, deCifrasComBr, deBananaCifras, daWeb];
 
 async function procurar(titulo, artista) {
   if (!palavras(titulo).length) return [{ erro: "Informe o nome da música." }, 400];
+  const r = await procurarUma(titulo, artista);
+  // artista digitado diferente do site (ex.: "Comunidade Shalom"): tenta de novo só pelo título
+  if (artista && r[1] === 200 && !r[0].candidatos.length) return procurarUma(titulo, "");
+  return r;
+}
+
+async function procurarUma(titulo, artista) {
   const resultados = await Promise.allSettled(FONTES.map((f) => f(titulo, artista)));
   const avisos = resultados.filter((r) => r.status === "rejected").map((r) => r.reason?.message || "fonte fora do ar");
   if (avisos.length === FONTES.length) return [{ erro: "Nenhum site de busca respondeu: " + avisos.join("; ") }, 502];
@@ -214,6 +253,20 @@ async function procurar(titulo, artista) {
     .sort((x, y) => y.pontos - x.pontos)
     .slice(0, 8);
   return [{ candidatos, avisos }, 200];
+}
+
+// ---------------------------------------------------------------- Cifras de um artista (Cifras.com.br)
+async function musicasDoArtista(nome) {
+  const w = palavras(nome);
+  if (!w.length) return [{ erro: "Informe o nome do artista." }, 400];
+  const r = await pegar("https://www.cifras.com.br/api/search?" + new URLSearchParams({ q: nome, songs_take: 60 }), { Accept: "application/json" });
+  if (!r.ok) return [{ erro: `Cifras.com.br (erro ${r.status})` }, 502];
+  const vistos = new Set();
+  const musicas = ((await r.json()).songs?.hits || [])
+    .filter((h) => { const a = palavras(h.COD_ARTISTA); return w.every((p) => a.includes(p)); })
+    .map((h) => ({ titulo: h.COD_TITULO.replace(/-/g, " "), artista: h.COD_ARTISTA.replace(/-/g, " "), url: `https://www.cifras.com.br/cifra/${h.COD_ARTISTA}/${h.COD_TITULO}` }))
+    .filter((m) => !vistos.has(m.url) && vistos.add(m.url));
+  return [{ musicas }, 200];
 }
 
 // ---------------------------------------------------------------- Sugestões do Músicas para Missa por domingo/festa
@@ -328,6 +381,7 @@ Deno.serve(async (request) => {
     : parametros.has("missas") ? await listarMissas()
     : parametros.has("sugestoes") ? await sugestoesDaMissa(parametros.get("sugestoes") || "")
     : parametros.has("titulo") ? await procurar(parametros.get("titulo") || "", parametros.get("artista") || "")
+    : parametros.has("artista") ? await musicasDoArtista(parametros.get("artista") || "")
     : await buscar(parametros.get("url") || "");
   return resposta(dados, status, origem);
 });
