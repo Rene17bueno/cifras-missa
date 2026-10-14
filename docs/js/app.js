@@ -1361,6 +1361,18 @@
     throw new Error("achei a música, mas nenhuma opção tinha a cifra com acordes (só letra ou site fora do ar); use o favorito ou cole a cifra");
   }
 
+  /** Move para a parte certa (pela letra) as músicas com cifra que estão em "Outras" */
+  const emOutras = (m) => comCifra(m) && ["outras", "outra"].includes(comparavel(m.posicao));
+  function classificarPelaLetra() {
+    let n = 0;
+    for (const m of rep.musicas.filter(emOutras)) {
+      const p = Classificar.parte(m.resultado.Música, m.resultado.Cifra, partes);
+      if (p && p !== m.posicao) { m.posicao = p; m.resultado.Posição = p; n += 1; }
+    }
+    if (n) { salvar(); render(); }
+    return n;
+  }
+
   async function buscarAutomatico() {
     const alvo = rep.musicas.filter((m) => !comCifra(m) && buscavel(m));
     if (!alvo.length || buscandoAutomatico) return;
@@ -1382,7 +1394,8 @@
     }
     buscandoAutomatico = false;
     const outroSite = alvo.filter((m) => m.resultado && m.resultado.Fonte).length;
-    mostrarProgresso(`✅ ${ok} de ${alvo.length} cifra(s) encontrada(s)`
+    const movidas = classificarPelaLetra();
+    mostrarProgresso(`✅ ${ok} de ${alvo.length} cifra(s) encontrada(s)` + (movidas ? ` · ${movidas} classificada(s) pela letra` : "")
       + (outroSite ? ` · ${outroSite} achada(s) pelo nome em outro site (confira a versão na seção 4)` : "")
       + (erros.length ? ` · não encontradas: ${erros.join(", ")} (use o favorito ou cole a cifra)` : ""));
     render();
@@ -1407,10 +1420,12 @@
   function renderBusca() {
     const faltando = rep.musicas.filter((m) => buscavel(m) && !comCifra(m));
     const el = $("#botoes-sites");
-    if (!rep.musicas.some(buscavel)) { el.innerHTML = ""; }
-    else if (!faltando.length) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link ou nome já têm cifra.</p>'; }
+    const outras = rep.musicas.filter(emOutras).length;
+    const botaoClassificar = outras ? ` <button data-classificar="1">🎯 Classificar pela letra — ${outras} em "Outras"</button>` : "";
+    if (!rep.musicas.some(buscavel)) { el.innerHTML = botaoClassificar; }
+    else if (!faltando.length) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link ou nome já têm cifra.</p>' + botaoClassificar; }
     else {
-      el.innerHTML = `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>${faltando.some((m) => m.resultado && m.resultado.Status === "Erro") ? "🔁 Tentar de novo as sem cifra" : "⚡ Buscar cifras automaticamente"} — ${faltando.length} faltando</button>`;
+      el.innerHTML = `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>${faltando.some((m) => m.resultado && m.resultado.Status === "Erro") ? "🔁 Tentar de novo as sem cifra" : "⚡ Buscar cifras automaticamente"} — ${faltando.length} faltando</button>` + botaoClassificar;
     }
 
     // Favorito: versão exata do CifraClub (ou de outros sites), inclusive das que vieram de outro site
@@ -1430,6 +1445,10 @@
 
   $("#botoes-sites").addEventListener("click", (e) => {
     if (e.target.closest("button[data-auto]")) buscarAutomatico();
+    if (e.target.closest("button[data-classificar]")) {
+      const n = classificarPelaLetra();
+      mostrarProgresso(n ? `🎯 ${n} música(s) classificada(s) pela letra` : "🎯 Sem sinal suficiente na letra; escolha a parte à mão.");
+    }
   });
 
   $("#botoes-favorito").addEventListener("click", (e) => {
