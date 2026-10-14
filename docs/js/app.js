@@ -20,7 +20,7 @@
     ["Comunhão", "https://www.cifraclub.com.br/catolicas/vejam-eu-andei-pelas-vilas/"],
     ["Comunhão crianças", "https://www.cifraclub.com.br/padre-zezinho/amar-como-jesus-amou/#key=5"],
   ];
-  const NOMES_SITE = { cifraclub: "CifraClub", musicasparamissa: "Músicas para Missa", outro: "Outro site" };
+  const NOMES_SITE = { cifraclub: "CifraClub", musicasparamissa: "Músicas para Missa", bananacifras: "Banana Cifras", cifrascombr: "Cifras.com.br", outro: "Outro site" };
   const NOVA_PARTE = "__nova__";
   const PARTES_TIPO = {
     "Missa": PARTES_PADRAO,
@@ -162,6 +162,8 @@
     try { host = new URL(url).hostname.toLowerCase(); } catch { /* link inválido */ }
     if (host.includes("cifraclub")) return "cifraclub";
     if (host.includes("musicasparamissa")) return "musicasparamissa";
+    if (host.includes("bananacifras")) return "bananacifras";
+    if (host.endsWith("cifras.com.br")) return "cifrascombr";
     return "outro";
   }
 
@@ -252,6 +254,12 @@
     $("#remover-parte").innerHTML = partes.map((p) => `<option>${esc(p)}</option>`).join("");
   }
 
+  /** Nome amigável do site de onde veio a cifra (ou o domínio, se for outro) */
+  const nomeFonte = (url) => {
+    const nome = NOMES_SITE[detectarSite(url)];
+    return nome === NOMES_SITE.outro ? hostDe(url) : nome;
+  };
+
   function renderLista() {
     const musicas = rep.musicas;
     $("#qtd-musicas").textContent = musicas.length;
@@ -266,7 +274,7 @@
       return `<div class="musica" data-id="${m.id}">
         <div class="status">${icone(m)}</div>
         <select class="sel-parte-musica" data-anterior="${esc(m.posicao)}" aria-label="Parte da missa">${opcoesPartes(m.posicao)}</select>
-        <div class="info"><b>${esc(nomeMusica(m.resultado) || "Ainda sem cifra")}</b> · ${esc(origem)}${m.resultado && m.resultado.Fonte ? ` · ⚠️ cifra de ${esc(hostDe(m.resultado.Fonte))}` : ""}${tom ? ` · 🎼 ${esc(tom)}` : ""}
+        <div class="info"><b>${esc(nomeMusica(m.resultado) || "Ainda sem cifra")}</b> · ${esc(origem)}${m.resultado && m.resultado.Fonte ? ` · ⚠️ cifra de ${esc(nomeFonte(m.resultado.Fonte))}` : ""}${tom ? ` · 🎼 ${esc(tom)}` : ""}
           ${m.url ? `<br><small>${esc(m.url)}</small>` : m.busca ? `<br><small>${esc(m.busca.titulo)}${m.busca.artista ? " — " + esc(m.busca.artista) : ""}</small>` : ""}</div>
         <div class="acoes">
           ${m.url ? `<a class="botao" href="${esc(m.url)}" target="_blank" rel="opener" title="Abrir a cifra no site">Abrir ↗</a>` : ""}
@@ -1249,7 +1257,7 @@
   // Busca automática pelo servidor (função cifras-busca do Supabase, código em supabase/functions/cifras-busca).
   // - Link: tenta buscar a cifra direto do link (qualquer site, menos o CifraClub, que bloqueia servidores).
   // - Se não der, ou se for CifraClub, ou se só tiver o nome: procura pelo nome em vários sites
-  //   (Músicas para Missa, Cifras.com.br e busca na web). A versão exata do CifraClub continua no favorito.
+  //   (Músicas para Missa, Cifras.com.br, Banana Cifras e busca na web). A versão exata do CifraClub continua no favorito.
   const API_BUSCA = Nuvem.FUNCAO_BUSCA;
   const FATAL = /sem conexão|entre na sua conta|sessão|cota|autorizad/; // erros que valem para todas as músicas: para a busca
   const SITES_BLOQUEADOS = ["cifraclub.com.br"];
@@ -1328,7 +1336,7 @@
     const { titulo, artista } = consulta(m);
     const { candidatos } = await chamarBusca({ titulo, artista });
     if (!candidatos.length) {
-      throw new Error("não achei essa música nos sites pesquisados (Músicas para Missa, Cifras.com.br e busca na web); confira o nome, use o favorito ou cole a cifra");
+      throw new Error("não achei essa música nos sites pesquisados (Músicas para Missa, Cifras.com.br, Banana Cifras e busca na web); confira o nome, use o favorito ou cole a cifra");
     }
     // Tenta as melhores opções, em ordem, até uma ter cifra com acordes (algumas só têm a letra)
     for (const c of candidatos.slice(0, 6)) {
@@ -1391,7 +1399,7 @@
     if (!rep.musicas.some(buscavel)) { el.innerHTML = ""; }
     else if (!faltando.length) { el.innerHTML = '<p class="aviso">✅ Todas as músicas com link ou nome já têm cifra.</p>'; }
     else {
-      el.innerHTML = `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>⚡ Buscar cifras automaticamente — ${faltando.length} faltando</button>`;
+      el.innerHTML = `<button class="primario" data-auto="1" ${buscandoAutomatico ? "disabled" : ""}>${faltando.some((m) => m.resultado && m.resultado.Status === "Erro") ? "🔁 Tentar de novo as sem cifra" : "⚡ Buscar cifras automaticamente"} — ${faltando.length} faltando</button>`;
     }
 
     // Favorito: versão exata do CifraClub (ou de outros sites), inclusive das que vieram de outro site
