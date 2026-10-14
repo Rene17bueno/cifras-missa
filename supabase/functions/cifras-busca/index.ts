@@ -79,6 +79,47 @@ async function extrairBanana(html, url) {
   return { url, titulo: String(d.track_name || "").trim(), artista: String(d.artist_name || "").trim(), cifra };
 }
 
+/** Cifra com acordes no meio da letra ("Se [E]tu") -> acordes numa linha acima da letra */
+const ACORDE_INLINE = /^[A-G][#b]?(?:maj|min|dim|aug|sus|add|m|M|\d|[+\-°º/()#]|b|[A-G])*$/;
+function inlineParaAcima(texto) {
+  return texto.replace(/\r\n?/g, "\n").split("\n").map((linha) => {
+    if (!/\[[^\]\n]{1,12}\]/.test(linha)) return linha;
+    let letra = "", acordes = "";
+    for (const parte of linha.split(/(\[[^\]\n]{1,12}\])/)) {
+      const acorde = parte.match(/^\[([^\]]+)\]$/)?.[1];
+      if (acorde && ACORDE_INLINE.test(acorde)) {
+        acordes = acordes.padEnd(letra.length, " ");
+        if (acordes && !acordes.endsWith(" ")) acordes += " ";
+        acordes += acorde;
+      } else letra += parte;
+    }
+    return letra.trim() ? acordes.trimEnd() + "\n" + letra : acordes.trimEnd();
+  }).join("\n");
+}
+
+/** Decifrando: a cifra vem embutida na página (dados do Next.js) como "lyrics" com [acorde] no meio da letra */
+function extrairDecifrando(html, url) {
+  const m = html.match(/\\"lyrics\\":\\"(.*?)\\",\\"lyrics_simplified\\"/s);
+  if (!m) return null;
+  const cifra = inlineParaAcima(JSON.parse(`"${JSON.parse(`"${m[1]}"`)}"`));
+  if (!temAcordes(cifra)) return null;
+  const [titulo, resto = ""] = (html.match(/<title>([^<]*)<\/title>/)?.[1] || "").split(" — Cifra de ");
+  return { url, titulo: titulo.trim(), artista: resto.split(" | ")[0].trim(), cifra };
+}
+
+/** Allelu: a cifra vem de uma API pública (/api/v1/cifras/<slug>), com [acorde] no meio da letra */
+async function extrairAllelu(url) {
+  const slug = new URL(url).pathname.match(/^\/site\/cifras\/([a-z0-9-]+)\/?$/)?.[1];
+  if (!slug) return null;
+  const r = await pegar(`https://allelu.app/api/v1/cifras/${slug}`, { Accept: "application/json" });
+  if (!r.ok) return null;
+  const d = await r.json();
+  const v = d.versao_atual || {};
+  const cifra = (v.intro ? `Intro: ${v.intro}\n\n` : "") + inlineParaAcima(String(v.cifra || ""));
+  if (!temAcordes(cifra)) return null;
+  return { url, titulo: String(d.musica?.titulo || "").trim(), artista: String(v.interprete || v.autor || "").trim(), cifra };
+}
+
 const LIMITE_DIARIO = 2000; // buscas por dia, somando todo mundo
 
 function cabecalhosCors(origem) {
@@ -137,7 +178,10 @@ async function buscar(link) {
       if (r.ok) {
         if (!/text|html/i.test(r.headers.get("content-type") || "")) return [{ erro: "A cifra não foi encontrada nessa página (não é uma página de site)." }, 404];
         const html = await r.text();
-        const dados = /(^|\.)bananacifras\.com$/.test(host) ? await extrairBanana(html, alvo.toString()) : extrairCifra(html, alvo.toString());
+        const dados = /(^|\.)bananacifras\.com$/.test(host) ? await extrairBanana(html, alvo.toString())
+          : host === "allelu.app" ? await extrairAllelu(alvo.toString())
+          : host === "decifrando.app.br" ? extrairDecifrando(html, alvo.toString())
+          : extrairCifra(html, alvo.toString());
         return dados ? [dados, 200] : [{ erro: "A cifra não foi encontrada nessa página (sem acordes)." }, 404];
       }
       if (status === 404) return [{ erro: "Página não encontrada (404). Confira o link." }, 404];
@@ -155,7 +199,8 @@ async function buscar(link) {
 //   1. Músicas para Missa (lista de todas as músicas do site, o sitemap)
 //   2. Cifras.com.br (busca do próprio site)
 //   3. Banana Cifras (busca do próprio site)
-//   4. Busca na web (DuckDuckGo): qualquer outro site que tenha a cifra
+//   4. Cifras Católicas, Allelu e Decifrando (busca de cada site)
+//   5. Busca na web (DuckDuckGo): qualquer outro site que tenha a cifra
 // Cada fonte pode falhar sozinha sem derrubar as outras.
 const SITEMAP_MPM = "https://musicasparamissa.com.br/sitemap.xml";
 
@@ -210,6 +255,35 @@ async function deBananaCifras(titulo, artista) {
   }));
 }
 
+// Cifras Católicas: a busca é uma API do próprio site; a página da cifra tem um <pre> com os acordes
+async function deCifrasCatolicas(titulo, artista) {
+  const r = await pegar("https://cifrascatolicas.com.br/api/bff/musicas?" + new URLSearchParams({ search: `${titulo} ${artista}`.trim(), page: "1", start: "0", limit: "20" }), { Accept: "application/json" });
+  if (!r.ok) throw new Error(`Cifras Católicas (erro ${r.status})`);
+  return ((await r.json()).data || []).map((h) => ({
+    url: `https://cifrascatolicas.com.br/${encodeURIComponent(h.artista_slug)}/${encodeURIComponent(h.slug)}`,
+    pontos: pontuar(titulo, artista, `${h.slug} ${h.artista_slug}`),
+  }));
+}
+
+// Allelu: API pública de busca
+async function deAllelu(titulo, artista) {
+  const r = await pegar("https://allelu.app/api/v1/cifras?" + new URLSearchParams({ search: `${titulo} ${artista}`.trim(), limit: "15" }), { Accept: "application/json" });
+  if (!r.ok) throw new Error(`Allelu (erro ${r.status})`);
+  return ((await r.json()).cifras || []).map((h) => ({
+    url: `https://allelu.app/site/cifras/${h.slug}`,
+    pontos: pontuar(titulo, artista, `${h.slug} ${h.interprete || ""}`),
+  }));
+}
+
+// Decifrando: a página de busca já vem com os resultados (/artista/musica)
+async function deDecifrando(titulo, artista) {
+  const r = await pegar("https://decifrando.app.br/musicas?" + new URLSearchParams({ q: `${titulo} ${artista}`.trim() }));
+  if (!r.ok) throw new Error(`Decifrando (erro ${r.status})`);
+  return [...new Set([...(await r.text()).matchAll(/href="\/([a-z0-9-]+\/[a-z0-9-]+)"/g)].map((m) => m[1]))]
+    .filter((caminho) => !/^musicas\//.test(caminho))
+    .map((caminho) => ({ url: `https://decifrando.app.br/${caminho}`, pontos: pontuar(titulo, artista, caminho) }));
+}
+
 // Páginas que nunca têm cifra em texto
 const SITES_IGNORADOS = /(^|\.)(youtube\.com|youtu\.be|spotify\.com|facebook\.com|instagram\.com|deezer\.com|wikipedia\.org|letras\.mus\.br|vagalume\.com\.br)$/;
 
@@ -231,7 +305,7 @@ async function daWeb(titulo, artista) {
   });
 }
 
-const FONTES = [deMusicasParaMissa, deCifrasComBr, deBananaCifras, daWeb];
+const FONTES = [deMusicasParaMissa, deCifrasComBr, deBananaCifras, deCifrasCatolicas, deAllelu, deDecifrando, daWeb];
 
 async function procurar(titulo, artista) {
   if (!palavras(titulo).length) return [{ erro: "Informe o nome da música." }, 400];
@@ -245,13 +319,14 @@ async function procurarUma(titulo, artista) {
   const resultados = await Promise.allSettled(FONTES.map((f) => f(titulo, artista)));
   const avisos = resultados.filter((r) => r.status === "rejected").map((r) => r.reason?.message || "fonte fora do ar");
   if (avisos.length === FONTES.length) return [{ erro: "Nenhum site de busca respondeu: " + avisos.join("; ") }, 502];
-  const vistos = new Set();
+  const vistos = new Set(), porSite = {};
   const candidatos = resultados
     .flatMap((r) => (r.status === "fulfilled" ? r.value : []))
     .filter((c) => c.pontos !== null && !vistos.has(c.url) && vistos.add(c.url))
     .map((c) => ({ ...c, fonte: hostDe(new URL(c.url)) }))
     .sort((x, y) => y.pontos - x.pontos)
-    .slice(0, 8);
+    .filter((c) => (porSite[c.fonte] = (porSite[c.fonte] || 0) + 1) <= 3) // no máximo 3 por site, para não esconder os outros
+    .slice(0, 15);
   return [{ candidatos, avisos }, 200];
 }
 
