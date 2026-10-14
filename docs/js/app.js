@@ -706,31 +706,99 @@
     oracao: ["Animação", "Animação", "Condução", "Espírito Santo", "Adoração", "Adoração", "Final"],
     encontro: ["Animação", "Animação", "Animação", "Condução", "Condução", "Espírito Santo", "Adoração", "Adoração", "Final", "Final"],
   };
-  let sugestao = [], tipoSug = "oracao"; // sugestao: [{etapa, m}]
+  let sugestao = [], tipoSug = "oracao", chavesTema = []; // sugestao: [{etapa, m}]
+  // Com tema: sorteia entre as músicas da etapa que mais combinam com o tema; sem combinação, entre todas
   const sortear = (etapa, fora) => {
-    const opcoes = (goc || []).filter((m) => m.etapa === etapa && !fora.includes(m.url));
+    let opcoes = (goc || []).filter((m) => m.etapa === etapa && !fora.includes(m.url));
+    if (chavesTema.length) {
+      const melhor = Math.max(0, ...opcoes.map((m) => pontosTema(m, chavesTema)));
+      if (melhor > 0) opcoes = opcoes.filter((m) => pontosTema(m, chavesTema) === melhor);
+    }
     return opcoes[Math.floor(Math.random() * opcoes.length)];
+  };
+  // Mais opções do tema por etapa (até 5, fora as já sugeridas)
+  const maisDoTema = () => {
+    if (!chavesTema.length) return "";
+    const fora = new Set(usadas());
+    return [...new Set(sugestao.map((x) => x.etapa))].map((etapa) => {
+      const lista = (goc || []).filter((m) => m.etapa === etapa && !fora.has(m.url) && pontosTema(m, chavesTema) > 0)
+        .sort((a, b) => pontosTema(b, chavesTema) - pontosTema(a, chavesTema)).slice(0, 5);
+      return lista.length ? `<h4>${esc(etapa)}: mais do tema</h4><ul class="catalogo">${lista.map(linhaGoc).join("")}</ul>` : "";
+    }).join("");
   };
   const usadas = () => sugestao.map((x) => x.m && x.m.url).filter(Boolean);
   function renderSugestao() {
     const html = sugestao.length
       ? `<ol class="catalogo">${sugestao.map(({ etapa, m }, i) => m ? `<li><b>${esc(etapa)}</b>: ${linhaGoc(m).replace(/^<li>|<\/li>$/g, "")} <button type="button" data-sorteio="${i}" title="Trocar esta música">🔀</button></li>` : "").join("")}</ol>`
-        + '<p><button type="button" data-sug-todas="1">➕ Adicionar todas ao repertório</button></p>'
+        + '<p><button type="button" data-sug-todas="1">➕ Adicionar todas ao repertório</button></p>' + maisDoTema()
+        + (chavesTema.length && !sugestao.some(({ m }) => m && pontosTema(m, chavesTema) > 0) ? '<p class="dica">Nenhuma música do catálogo combina com esse tema; mostrei um roteiro comum.</p>' : "")
       : "";
     $("#goc-sug").innerHTML = $("#lat-goc-sug").innerHTML = html;
   }
-  async function sugerirRoteiro(tipo) {
+  // Tema -> palavras-chave (o tema digitado + sinônimos do assunto)
+  const TEMAS = [
+    ["amor caridade amar coracao", ["amor", "caridade", "amar", "coracao"]],
+    ["perdao misericordia piedade reconcilia", ["perdao", "misericordia", "piedade", "compaixao", "reconcilia"]],
+    ["espirito santo pentecostes", ["espirito", "consolador", "pentecostes", "fogo", "sopro", "paraclito"]],
+    ["maria mae senhora", ["maria", "senhora", "mae", "ave", "salve", "rainha"]],
+    ["eucaristia pao corpo sangue ceia", ["eucaristia", "pao", "corpo", "sangue", "ceia", "hostia", "adoro", "comunhao"]],
+    ["paz", ["paz", "shalom"]],
+    ["cura libertacao", ["cura", "curar", "restaura", "liberta", "libertacao"]],
+    ["louvor gloria aleluia", ["louvor", "louvai", "gloria", "aleluia", "bendito", "bendize"]],
+    ["cruz pascoa ressurreicao quaresma", ["cruz", "ressuscit", "pascal", "vitoria", "vivo", "calvario"]],
+    ["natal menino belem", ["natal", "menino", "belem", "nasceu", "emanuel"]],
+    ["advento esperanca vigilia", ["advento", "esperanca", "vem", "vigia", "aguardo"]],
+    ["vocacao missao chamado envio", ["chamado", "vocacao", "envia", "missao", "vai", "ide"]],
+    ["fe confianca", ["fe", "confio", "creio", "confianca", "entrego"]],
+    ["familia", ["familia", "lar", "pais", "filhos"]],
+    ["jovem juventude", ["jovem", "juventude", "jovens"]],
+  ];
+  function palavrasDoTema(tema) {
+    const t = comparavel(tema), chaves = new Set(t.split(" ").filter((w) => w.length > 3));
+    for (const [gatilhos, sin] of TEMAS) if (gatilhos.split(" ").some((g) => g.length > 2 && t.includes(g))) sin.forEach((w) => chaves.add(w));
+    return [...chaves];
+  }
+  const pontosTema = (m, chaves) => { const t = " " + comparavel(m.titulo) + " "; return chaves.filter((w) => t.includes(w.length <= 3 ? ` ${w} ` : w)).length; };
+
+  /** Missa do dia: acha a missa pelo texto (ou a próxima) e lista as sugestões por parte */
+  async function sugerirMissa(tema) {
+    const mostrar = (h) => { $("#goc-sug").innerHTML = $("#lat-goc-sug").innerHTML = h; };
+    mostrar("<p class=\"dica\">Buscando a missa…</p>");
+    try {
+      const { missas } = await chamarBusca({ missas: "1" });
+      const t = comparavel(tema), ws = t.split(" ").filter((w) => w.length > 2);
+      const pontos = (m) => ws.filter((w) => comparavel(m.titulo + " " + (m.data || "")).includes(w)).length;
+      const missa = missas.slice().sort((a, b) => pontos(b) - pontos(a))[0];
+      if (!missa) { mostrar("<p class=\"aviso\">Nenhuma missa listada agora.</p>"); return; }
+      const { partes: grupos } = await chamarBusca({ sugestoes: missa.slug });
+      mostrar(`<p><b>${esc(missa.titulo)}${missa.data ? " (" + esc(missa.data) + ")" : ""}</b></p>` + (grupos.map((g) => `<h4>${esc(g.parte)}</h4><ul class="sugestoes">` + g.itens.map((i) =>
+        `<li><button type="button" data-mpm-url="${esc(i.url)}" data-parte="${esc(g.parte)}" title="Adicionar à lista">➕</button> ${esc(i.titulo)}</li>`).join("") + "</ul>").join("")
+        + '<p><button type="button" data-mpm-todas="1">➕ Adicionar a 1ª de cada parte</button></p>' || "<p class=\"aviso\">Sem sugestões para essa missa.</p>"));
+    } catch (erro) { mostrar(`<p class="erro">Não consegui buscar a missa: ${esc(erro.message)}</p>`); }
+  }
+
+  async function sugerirRoteiro(tipo, tema = "") {
+    if (tipo === "missa") return sugerirMissa(tema);
     await carregarGoc();
     if (!goc) return;
     tipoSug = tipo;
     sugestao = [];
+    chavesTema = tema.trim() ? palavrasDoTema(tema) : [];
     SEQUENCIAS[tipo].forEach((etapa) => sugestao.push({ etapa, m: sortear(etapa, usadas()) }));
     renderSugestao();
   }
-  $("#goc-sugerir").addEventListener("click", () => sugerirRoteiro($("#goc-tipo").value));
-  $("#lat-goc-sugerir").addEventListener("click", () => sugerirRoteiro($("#lat-goc-tipo").value));
-  for (const [a, b] of [["#goc-tipo", "#lat-goc-tipo"], ["#lat-goc-tipo", "#goc-tipo"]]) $(a).addEventListener("change", (e) => { $(b).value = e.target.value; });
+  $("#goc-sugerir").addEventListener("click", () => sugerirRoteiro($("#goc-tipo").value, $("#goc-tema").value));
+  $("#lat-goc-sugerir").addEventListener("click", () => sugerirRoteiro($("#lat-goc-tipo").value, $("#lat-goc-tema").value));
+  for (const [a, b] of [["#goc-tipo", "#lat-goc-tipo"], ["#lat-goc-tipo", "#goc-tipo"], ["#goc-tema", "#lat-goc-tema"], ["#lat-goc-tema", "#goc-tema"]]) $(a).addEventListener("input", (e) => { $(b).value = e.target.value; });
   function cliqueSugestao(e) {
+    const mp = e.target.closest("button[data-mpm-url]");
+    if (mp) { rep.musicas.push(novaMusica(parteDaLista(mp.dataset.parte), mp.dataset.mpmUrl)); mp.disabled = true; salvar(); render(); buscarAutomatico(); return; }
+    if (e.target.closest("button[data-mpm-todas]")) {
+      const vistos = new Set();
+      for (const b of e.currentTarget.querySelectorAll("button[data-mpm-url]")) if (!vistos.has(b.dataset.parte) && vistos.add(b.dataset.parte)) rep.musicas.push(novaMusica(parteDaLista(b.dataset.parte), b.dataset.mpmUrl));
+      salvar(); render(); buscarAutomatico(); aviso(`${vistos.size} músicas adicionadas; buscando as cifras…`);
+      return;
+    }
     const r = e.target.closest("button[data-sorteio]");
     if (r) { const x = sugestao[+r.dataset.sorteio]; x.m = sortear(x.etapa, usadas()) || x.m; renderSugestao(); return; }
     if (e.target.closest("button[data-sug-todas]")) {
