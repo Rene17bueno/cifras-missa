@@ -137,7 +137,7 @@
 <p class="dica">Músicas de grupo de oração por artista/comunidade. ➕ coloca no repertório aberto. ⬇️ em cada etapa baixa as cifras que faltam e guarda no Supabase.</p>
 <div id="lat-goc" class="lat-painel">
 <div id="lat-goc-status" class="aviso" hidden><span></span> <button id="lat-goc-parar" type="button">Parar</button></div>
-<p><select id="lat-goc-tipo" aria-label="Tipo de roteiro"><option value="oracao">Grupo de oração</option><option value="encontro">Encontro</option></select> <button type="button" id="lat-goc-sugerir">💡 Sugerir roteiro</button></p>
+<p><select id="lat-goc-tipo" aria-label="Tipo de roteiro"><option value="oracao">Grupo de oração</option><option value="encontro">Encontro</option><option value="missa">Missa do dia</option></select> <input id="lat-goc-tema" type="text" maxlength="80" placeholder="Tema ou missa do dia (ex.: perdão)" aria-label="Tema ou missa do dia"> <button type="button" id="lat-goc-sugerir">💡 Sugerir roteiro</button></p>
 <div id="lat-goc-sug"></div>
 <input id="lat-goc-filtro" type="search" placeholder="Procurar música…" aria-label="Procurar música do grupo de oração">
 <div id="lat-goc-lista"></div>
@@ -260,7 +260,7 @@ ou levar o repertório para outro aparelho (o arquivo também abre no app do com
 <label class="campo cresce">Filtrar pelo nome <input id="goc-filtro" type="search" placeholder="Ex.: rendo, abba"></label>
 </div>
 <p class="dica">Músicas de grupo de oração por artista/comunidade (fonte: cifras.com.br). ↗ abre a cifra no site; ➕ leva título e link para "Colar cifra", onde você cola a cifra copiada.</p>
-<p><label class="campo">Tipo <select id="goc-tipo"><option value="oracao">Grupo de oração</option><option value="encontro">Encontro</option></select></label> <button type="button" id="goc-sugerir">💡 Sugerir roteiro</button></p>
+<p><label class="campo">Tipo <select id="goc-tipo"><option value="oracao">Grupo de oração</option><option value="encontro">Encontro</option><option value="missa">Missa do dia</option></select></label> <label class="campo cresce">Tema ou missa do dia <input id="goc-tema" type="text" maxlength="80" placeholder="Ex.: perdão, Espírito Santo, Cristo Rei"></label> <button type="button" id="goc-sugerir">💡 Sugerir roteiro</button></p>
 <div id="goc-sug"></div>
 <p id="goc-status" class="aviso" hidden></p>
 <div id="goc-lista"></div>
