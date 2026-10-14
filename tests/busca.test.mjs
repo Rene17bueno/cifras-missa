@@ -28,6 +28,9 @@ const PAGINA = `<a href="#accorside-1">Canto de Abertura - Sugestões</a><a href
 const MAPA = `<urlset><url><loc>https://musicasparamissa.com.br/musica/cordeiro-de-deus-i/</loc></url><url><loc>https://musicasparamissa.com.br/musica/salmo-95-gloria-ao-senhor/</loc></url><url><loc>https://musicasparamissa.com.br/musica/a-barca/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/entrada-tempo-comum/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/aclamacao-10dtc-ano-a/</loc></url><url><loc>https://musicasparamissa.com.br/musicas-de/comunh%C3%A3o-sao-pedro/</loc></url></urlset>`;
 const PASTA = `<a href="/musica/a-barca"> <h4>A BARCA</h4><p>letra</p></a><a href="/musica/vamos-celebrar"> <h4>VAMOS CELEBRAR (Shalom)</h4></a>`;
 
+const BANANA_PAGINA = `<title>Fogo abrasador CIFRA</title><script>songdata={"track_id":1,"track_name":"Fogo abrasador","artist_name":"Comunidade Católica Shalom","tab_id":170584}</script><pre id="song-pre"></pre>`;
+const BANANA_TAB = { tone: "E", content: "Intro: E9   B   C#m\n\nE9       B               C#m\nSe Tu inflamas o meu coração,\n        G#m                 A\nSe Tu somente és a minha razão," };
+
 let usarMapa = false;
 let falhar = new Set();
 let cota = true;
@@ -41,6 +44,10 @@ globalThis.fetch = async (url) => {
   if (url.includes("/musicas-de/")) return R(PASTA);
   if (url.includes("sitemap.xml")) return R(usarMapa ? MAPA : SITEMAP, "application/xml");
   if (url.includes("cifras.com.br/api/search")) return R(JSON.stringify(API), "application/json");
+  if (url.includes("bananacifras.com/search")) return R('{"version":"fd755dcdbd90c073505e1f713b8b92c6"}');
+  if (url.includes("searchapi/song")) return R(JSON.stringify([[1, "fogo-abrasador", "Fogo abrasador", "comunidade-catolica-shalom", "Comunidade Católica Shalom", 1]]), "application/json");
+  if (url.includes("bananacifra.com/json/tab.js")) return R(JSON.stringify(BANANA_TAB), "application/json");
+  if (url.includes("bananacifras.com/cifra/")) return R(BANANA_PAGINA);
   if (url.includes("duckduckgo")) return R(DDG);
   if (url.includes("cifras.com.br/cifra/")) return R(CIFRA);
   if (url.includes("so-letra")) return R(SO_LETRA);
@@ -108,7 +115,7 @@ test("uma fonte fora do ar não derruba as outras; todas fora = 502; nome vazio 
   assert.equal(st, 200);
   assert.equal(d.avisos.length, 1);
   assert.ok(d.candidatos.length >= 2);
-  falhar = new Set(["sitemap.xml", "cifras.com.br/api", "duckduckgo"]);
+  falhar = new Set(["sitemap.xml", "cifras.com.br/api", "search.bananacifra.com", "duckduckgo"]);
   assert.equal((await chamar({ titulo: "Kyrie" }))[0], 502);
   falhar = new Set();
   assert.equal((await chamar({ titulo: "  " }))[0], 400);
@@ -137,4 +144,18 @@ test("catálogo: classifica pelo nome, escolhe as pastas certas e lê os título
   assert.equal(st, 200);
   assert.deepEqual(d.pastas[0], ["entrada-tempo-comum", [["a-barca", "A BARCA"], ["vamos-celebrar", "VAMOS CELEBRAR (Shalom)"]]]);
   assert.equal(d.pastas.length, 2);
+});
+
+test("Banana Cifras: busca pelo nome e lê a cifra do JSON", async () => {
+  const [, b] = await chamar({ titulo: "Fogo abrasador", artista: "Shalom" });
+  assert.ok(b.candidatos.some((c) => c.url === "https://www.bananacifras.com/cifra/c/comunidade-catolica-shalom/fogo-abrasador" && c.fonte === "bananacifras.com"));
+  const [st, d] = await chamar({ url: "https://www.bananacifras.com/cifra/c/comunidade-catolica-shalom/fogo-abrasador" });
+  assert.equal(st, 200);
+  assert.equal(d.artista, "Comunidade Católica Shalom");
+  assert.match(d.cifra, /^Intro: E9/);
+});
+
+test("sem resultado com o artista digitado, tenta só pelo título", async () => {
+  const [, d] = await chamar({ titulo: "Fogo abrasador", artista: "Artista Que Não Existe" });
+  assert.ok(d.candidatos.some((c) => c.fonte === "bananacifras.com"));
 });
