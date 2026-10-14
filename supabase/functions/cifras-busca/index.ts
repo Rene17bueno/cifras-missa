@@ -334,7 +334,7 @@ async function procurarUma(titulo, artista) {
 async function musicasDoArtista(nome) {
   const w = palavras(nome);
   if (!w.length) return [{ erro: "Informe o nome do artista." }, 400];
-  const r = await pegar("https://www.cifras.com.br/api/search?" + new URLSearchParams({ q: nome, songs_take: 60 }), { Accept: "application/json" });
+  const r = await pegar("https://www.cifras.com.br/api/search?" + new URLSearchParams({ q: nome, songs_take: 30 }), { Accept: "application/json" });
   if (!r.ok) return [{ erro: `Cifras.com.br (erro ${r.status})` }, 502];
   const vistos = new Set();
   const musicas = ((await r.json()).songs?.hits || [])
