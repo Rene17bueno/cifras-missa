@@ -31,6 +31,14 @@ const PASTA = `<a href="/musica/a-barca"> <h4>A BARCA</h4><p>letra</p></a><a hre
 const BANANA_PAGINA = `<title>Fogo abrasador CIFRA</title><script>songdata={"track_id":1,"track_name":"Fogo abrasador","artist_name":"Comunidade Católica Shalom","tab_id":170584}</script><pre id="song-pre"></pre>`;
 const BANANA_TAB = { tone: "E", content: "Intro: E9   B   C#m\n\nE9       B               C#m\nSe Tu inflamas o meu coração,\n        G#m                 A\nSe Tu somente és a minha razão," };
 
+// Decifrando: dados do Next.js (a cifra vai escapada duas vezes, com [acorde] no meio da letra)
+const DECIFRANDO = `<title>Fogo Abrasador — Cifra de Comunidade Católica Shalom | Decifrando</title><script>self.__next_f.push([1,"{\\"song\\":{\\"id\\":1,\\"title\\":\\"Fogo Abrasador\\",\\"tone\\":\\"E\\",\\"lyrics\\":\\"[E9]Se Tu inf[B]lamas o meu cora[C#m]ção,\\\\nSe Tu so[G#m]mente és a minha raz[A]ão,\\\\n\\\\n[Refrão 2x]\\",\\"lyrics_simplified\\":\\"x\\"}}"])</script>`;
+const DECIFRANDO_BUSCA = `<a href="/musicas/artistas">a</a><a href="/comunidade-catolica-shalom/fogo-abrasador">Fogo</a><a href="/capella/santo">Santo</a>`;
+const ALLELU_LISTA = { cifras: [{ slug: "fogo-abrasador", titulo: "Fogo Abrasador", interprete: "Adriana Arydes" }] };
+const ALLELU_CIFRA = { musica: { titulo: "Fogo Abrasador" }, versao_atual: { interprete: "Adriana Arydes", intro: "E9 B", cifra: "[E9]Se Tu inf[B]lamas o meu cora[C#m]ção,\nSe Tu so[G#m]mente és a minha raz[A]ão," } };
+const CATOLICAS_LISTA = { data: [{ slug: "fogo-abrasador", artista_slug: "comunidade-católica-shalom", nome: "FOGO ABRASADOR" }] };
+const CATOLICAS_PAGINA = `<h1>Fogo abrasador</h1><pre>\n<b>E9</b>       <b>B</b>      <b>C#m</b>\nSe Tu inflamas o meu coração,\n    <b>G#m</b>             <b>A</b>\nSe Tu somente és a minha razão,</pre>`;
+
 let usarMapa = false;
 let falhar = new Set();
 let cota = true;
@@ -48,6 +56,13 @@ globalThis.fetch = async (url) => {
   if (url.includes("searchapi/song")) return R(JSON.stringify([[1, "fogo-abrasador", "Fogo abrasador", "comunidade-catolica-shalom", "Comunidade Católica Shalom", 1]]), "application/json");
   if (url.includes("bananacifra.com/json/tab.js")) return R(JSON.stringify(BANANA_TAB), "application/json");
   if (url.includes("bananacifras.com/cifra/")) return R(BANANA_PAGINA);
+  if (url.includes("cifrascatolicas.com.br/api/bff")) return R(JSON.stringify(CATOLICAS_LISTA), "application/json");
+  if (url.includes("cifrascatolicas.com.br/")) return R(CATOLICAS_PAGINA);
+  if (url.includes("allelu.app/api/v1/cifras?")) return R(JSON.stringify(ALLELU_LISTA), "application/json");
+  if (url.includes("allelu.app/api/v1/cifras/")) return R(JSON.stringify(ALLELU_CIFRA), "application/json");
+  if (url.includes("allelu.app/site/")) return R("<html></html>");
+  if (url.includes("decifrando.app.br/musicas")) return R(DECIFRANDO_BUSCA);
+  if (url.includes("decifrando.app.br/")) return R(DECIFRANDO);
   if (url.includes("duckduckgo")) return R(DDG);
   if (url.includes("cifras.com.br/cifra/")) return R(CIFRA);
   if (url.includes("so-letra")) return R(SO_LETRA);
@@ -115,7 +130,7 @@ test("uma fonte fora do ar não derruba as outras; todas fora = 502; nome vazio 
   assert.equal(st, 200);
   assert.equal(d.avisos.length, 1);
   assert.ok(d.candidatos.length >= 2);
-  falhar = new Set(["sitemap.xml", "cifras.com.br/api", "search.bananacifra.com", "duckduckgo"]);
+  falhar = new Set(["sitemap.xml", "cifras.com.br/api", "search.bananacifra.com", "cifrascatolicas.com.br/api", "allelu.app", "decifrando.app.br", "duckduckgo"]);
   assert.equal((await chamar({ titulo: "Kyrie" }))[0], 502);
   falhar = new Set();
   assert.equal((await chamar({ titulo: "  " }))[0], 400);
@@ -158,4 +173,20 @@ test("Banana Cifras: busca pelo nome e lê a cifra do JSON", async () => {
 test("sem resultado com o artista digitado, tenta só pelo título", async () => {
   const [, d] = await chamar({ titulo: "Fogo abrasador", artista: "Artista Que Não Existe" });
   assert.ok(d.candidatos.some((c) => c.fonte === "bananacifras.com"));
+});
+
+test("Cifras Católicas, Allelu e Decifrando: busca pelo nome e leitura da cifra", async () => {
+  const [, b] = await chamar({ titulo: "Fogo abrasador", artista: "Shalom" });
+  const fontes = b.candidatos.map((c) => c.fonte);
+  for (const f of ["cifrascatolicas.com.br", "allelu.app", "decifrando.app.br"]) assert.ok(fontes.includes(f), f);
+  for (const url of [
+    "https://cifrascatolicas.com.br/comunidade-cat%C3%B3lica-shalom/fogo-abrasador",
+    "https://allelu.app/site/cifras/fogo-abrasador",
+    "https://decifrando.app.br/comunidade-catolica-shalom/fogo-abrasador",
+  ]) {
+    const [st, d] = await chamar({ url });
+    assert.equal(st, 200, url);
+    assert.match(d.cifra.trim(), /^(Intro: E9 B\n\n)?E9 +B +C#m\nSe Tu inflamas o meu coração,\n/i, url);
+    assert.doesNotMatch(d.cifra, /\[[A-G]|<b>/, url); // sem marcação de acorde no meio da letra
+  }
 });
