@@ -859,7 +859,7 @@
     $r("#robo-liga").checked = robo.ligado;
     $r("#robo-seguidos").innerHTML = robo.seguidos.map((a) => `<span class="badge">${esc(a)} <button type="button" class="icone" data-tirar="${esc(a)}" aria-label="Deixar de seguir">✕</button></span>`).join(" ")
       || '<p class="dica">Nenhum artista seguido: digite o nome acima e clique em Seguir.</p>';
-    $r("#robo-estado").textContent = robo.ultima ? "Última verificação: " + new Date(robo.ultima).toLocaleString("pt-BR") : "Ainda não rodou.";
+    $r("#robo-estado").textContent = robo.ultima ? "Última verificação: " + new Date(robo.ultima).toLocaleString("pt-BR") + (robo.novas.length ? "" : " — nenhuma cifra nova.") : "Ainda não rodou.";
     $r("#robo-novas").innerHTML = robo.novas.length
       ? `<h4>${robo.novas.length} cifras novas para aprovar</h4><button type="button" data-ignorar="*">Ignorar todas</button><ul class="sugestoes">${robo.novas.map(linhaArtista).join("")}</ul>` : "";
   }
@@ -880,7 +880,10 @@
 
   let roboRodando = false;
   async function rodarRobo() {
-    if (roboRodando || !robo.seguidos.length) return;
+    if (roboRodando) return;
+    const digitado = $r("#art-nome").value.trim();
+    if (digitado && !robo.seguidos.some((a) => comparavel(a) === comparavel(digitado)) && robo.seguidos.length < 10) robo.seguidos.push(digitado);
+    if (!robo.seguidos.length) { $r("#robo-estado").textContent = "Nada para verificar: digite um artista no campo acima e clique em Seguir."; return; }
     roboRodando = true;
     $r("#robo-estado").textContent = "Verificando…";
     for (const a of robo.seguidos) {
@@ -888,6 +891,7 @@
         for (const i of await musicasDe(a)) if (!vistas.has(i.url) && !robo.novas.some((n) => n.url === i.url)) robo.novas.push(i);
       } catch (erro) {
         if (FATAL.test(erro.message)) { aviso("Robô parou: " + erro.message); break; }
+        aviso(`Robô: falha em "${a}": ${erro.message}`);
       }
     }
     robo.ultima = Date.now();
