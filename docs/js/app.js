@@ -861,7 +861,7 @@
       || '<p class="dica">Nenhum artista seguido: digite o nome acima e clique em Seguir.</p>';
     $r("#robo-estado").textContent = robo.ultima ? "Última verificação: " + new Date(robo.ultima).toLocaleString("pt-BR") + (robo.novas.length ? "" : " — nenhuma cifra nova.") : "Ainda não rodou.";
     $r("#robo-novas").innerHTML = robo.novas.length
-      ? `<h4>${robo.novas.length} cifras novas para aprovar</h4><button type="button" data-ignorar="*">Ignorar todas</button><ul class="sugestoes">${robo.novas.map(linhaArtista).join("")}</ul>` : "";
+      ? `<h4>${robo.novas.length} cifras novas para aprovar</h4><button type="button" data-todas="1">Aprovar todas</button> <button type="button" data-ignorar="*">Ignorar todas</button><ul class="sugestoes">${robo.novas.map(linhaArtista).join("")}</ul>` : "";
   }
 
   const musicasDe = async (artista) => (await chamarBusca({ artista })).musicas;
@@ -872,7 +872,7 @@
     alvo.textContent = "Buscando…";
     try {
       const l = await musicasDe($r("#art-nome").value.trim());
-      alvo.innerHTML = l.length ? `<ul class="sugestoes">${l.map(linhaArtista).join("")}</ul>` : "Nenhuma cifra encontrada para esse artista.";
+      alvo.innerHTML = l.length ? `<button type="button" data-todas="1">Adicionar todas (${l.length})</button><ul class="sugestoes">${l.map(linhaArtista).join("")}</ul>` : "Nenhuma cifra encontrada para esse artista.";
     } catch (erro) {
       alvo.textContent = "Não consegui buscar: " + erro.message;
     }
@@ -911,9 +911,16 @@
     renderRobo();
   });
   $r("#aba-artista").addEventListener("click", (e) => {
-    const b = e.target.closest("button[data-url],button[data-ignorar],button[data-tirar]");
+    const b = e.target.closest("button[data-url],button[data-ignorar],button[data-tirar],button[data-todas]");
     if (!b) return;
-    if (b.dataset.tirar) robo.seguidos = robo.seguidos.filter((a) => a !== b.dataset.tirar);
+    if (b.dataset.todas) {
+      const urls = [...b.parentElement.querySelectorAll("button[data-url]")].map((x) => x.dataset.url);
+      const parte = parteDaLista($r("#art-parte").value);
+      urls.forEach((u) => { vistas.add(u); const m = novaMusica(parte, u); rep.musicas.push(m); verDepois(m); });
+      robo.novas = robo.novas.filter((n) => !vistas.has(n.url));
+      if (urls.length) { salvar(); render(); buscarAutomatico(); aviso(`${urls.length} músicas adicionadas.`); }
+      if (b.parentElement.id === "art-lista") b.parentElement.innerHTML = "";
+    } else if (b.dataset.tirar) robo.seguidos = robo.seguidos.filter((a) => a !== b.dataset.tirar);
     else {
       const urls = b.dataset.ignorar === "*" ? robo.novas.map((n) => n.url) : [b.dataset.url || b.dataset.ignorar];
       urls.forEach((u) => vistas.add(u));
