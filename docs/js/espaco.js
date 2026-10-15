@@ -27,6 +27,17 @@ caixa.innerHTML = `<h2 id="esp-titulo"></h2>
 <p id="esp-dica" class="dica"></p>
 <div id="esp-res" aria-live="polite"></div>`;
 
+document.head.insertAdjacentHTML("beforeend", `<style>
+#esp-res .catalogo{display:block;columns:1;list-style:none;margin:.5rem 0;padding:0}
+#esp-res .catalogo li{display:flex;align-items:center;flex-wrap:wrap;gap:.5rem;padding:.3rem 0;border-bottom:1px solid rgba(0,0,0,.08)}
+#esp-res ol.catalogo>li>b{min-width:8rem}
+#esp-res h4{margin:1rem 0 .25rem}
+</style>`);
+// O app tira emojis dos botões; o de trocar a música sorteada ficaria vazio
+const res = caixa.querySelector("#esp-res");
+const rotular = () => res.querySelectorAll("button[data-sorteio]:empty").forEach((b) => { b.textContent = "Trocar"; });
+new MutationObserver(rotular).observe(res, { childList: true, subtree: true, characterData: true });
+
 function textos() {
 const missa = CM.tipo() === "Missa";
 $("#esp-titulo").textContent = missa ? "Sugestões do domingo" : "Sugestões por tema";
