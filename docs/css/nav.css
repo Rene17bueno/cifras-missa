@@ -243,3 +243,9 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 .rodape-cta-txt b { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; }
 .rodape-cta-txt small { font-size: 12px; font-weight: 500; opacity: .75; }
 @media print { .rodape-aulas { display: none; } }
+
+/* "V" do favicon do site de aulas */
+.v-ico { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #0e0d1a; color: #c9a24b; border: 1px solid rgba(201,162,75,.6); font: 700 16px/1 "Playfair Display", Georgia, "Times New Roman", serif; text-transform: none; letter-spacing: 0; }
+.btn-aulas { padding-left: 8px; }
+.rodape-cta { padding-left: 10px; }
+.rodape-cta .v-ico { width: 40px; height: 40px; font-size: 22px; }
