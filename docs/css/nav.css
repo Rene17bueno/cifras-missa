@@ -262,3 +262,16 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 .rodape-cta { margin-left: auto; margin-right: auto; }
 .btn-aulas { z-index: 30; }
 .rodape-cta { width: min(420px, 92%); } .rodape-cta-txt small { text-wrap: balance; }
+
+/* Botão flutuante compacto: só o "V"; expande ao passar o mouse, focar ou tocar */
+.btn-aulas { padding: 4px; gap: 0; }
+.btn-aulas .v-ico { width: 44px; height: 44px; font-size: 24px; border-color: var(--ouro); }
+.btn-aulas-txt { display: flex; flex-direction: column; gap: 3px; max-width: 0; opacity: 0; overflow: hidden; white-space: nowrap; margin: 0; transition: max-width .3s ease, opacity .2s ease, margin .3s ease; }
+.btn-aulas-txt b { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.btn-aulas-txt small { font-size: 11px; font-weight: 500; opacity: .8; letter-spacing: 0; text-transform: none; }
+.btn-aulas svg { width: 0; margin: 0; opacity: 0; transition: width .3s ease, margin .3s ease, opacity .2s ease; }
+.btn-aulas:hover .btn-aulas-txt, .btn-aulas:focus-visible .btn-aulas-txt { max-width: 240px; opacity: 1; margin: 0 8px 0 10px; }
+.btn-aulas:hover svg, .btn-aulas:focus-visible svg { width: 16px; margin-right: 10px; opacity: 1; }
+.btn-aulas-txt { animation: btnAulasDica 4s ease 1.5s 1; }
+@keyframes btnAulasDica { 0%, 100% { max-width: 0; opacity: 0; margin: 0; } 15%, 80% { max-width: 240px; opacity: 1; margin: 0 14px 0 10px; } }
+@media (prefers-reduced-motion: reduce) { .btn-aulas-txt { animation: none; } }
