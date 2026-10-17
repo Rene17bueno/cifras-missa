@@ -1,5 +1,5 @@
 // Deixa a página funcionar sem internet (repertórios já salvos no aparelho). Online: sempre a versão mais nova.
-const CACHE = "musico-catolico-v1";
+const CACHE = "musico-catolico-v2";
 const ARQUIVOS = ["./", "index.html", "css/estilo.css", "css/nav.css", "js/layout.js", "js/classificar.js", "js/transpor.js", "js/exportar.js", "js/nuvem.js",
   "js/palco.js", "js/app.js", "js/nav.js", "vendor/jspdf.umd.min.js", "vendor/docx.umd.js", "vendor/exceljs.min.js", "icone.svg", "manifest.webmanifest"];
 
