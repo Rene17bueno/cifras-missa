@@ -223,3 +223,23 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 /* Botão ⬇ de baixar cifras alinhado à direita do resumo (Missa e Grupo de Oração) */
 #lat-lista summary, #lat-goc-lista summary { position: relative; padding-right: 44px; }
 .lat-baixar { float: none; position: absolute; right: 8px; top: 50%; transform: translateY(-50%); }
+
+/* Botão flutuante para o site de aulas (todas as telas) */
+.btn-aulas { position: fixed; right: 14px; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); z-index: 18; display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: 999px; background: linear-gradient(135deg, var(--marinho), var(--marinho-2)); color: #fff; border: 1.5px solid var(--ouro); font: 700 12px/1 Montserrat, system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; text-decoration: none; box-shadow: 0 6px 18px rgba(31,58,95,.35); transition: transform .15s, box-shadow .15s; }
+.btn-aulas:hover, .btn-aulas:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(31,58,95,.45); outline: none; }
+.btn-aulas svg { color: var(--ouro); }
+@media print { .btn-aulas { display: none; } }
+
+/* Rodapé com redes, livros e botão para o site de aulas */
+.rodape-aulas { margin-top: 24px; padding: 28px 16px calc(80px + env(safe-area-inset-bottom, 0px)); background: #14213a; color: #e8d5a3; text-align: center; border-top: 3px solid var(--ouro); position: relative; z-index: 20; }
+.rodape-brand { font: 700 18px/1.2 Montserrat, system-ui, sans-serif; color: #fff; margin-bottom: 14px; }
+.rodape-brand span { color: var(--ouro); }
+.rodape-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 10px; margin-bottom: 12px; }
+.rodape-links a { display: inline-flex; align-items: center; gap: 7px; padding: 6px 12px; border-radius: 8px; color: #e8d5a3; text-decoration: none; font-size: 14px; transition: background .2s; }
+.rodape-links a:hover, .rodape-links a:focus-visible { background: rgba(201,162,75,.16); outline: none; }
+.rodape-cta { display: inline-flex; align-items: center; gap: 12px; margin-top: 8px; padding: 12px 24px; border-radius: 999px; background: linear-gradient(135deg, #e8d5a3, var(--ouro)); color: #14213a; text-decoration: none; box-shadow: 0 6px 18px rgba(201,162,75,.3); transition: transform .15s, box-shadow .15s; }
+.rodape-cta:hover, .rodape-cta:focus-visible { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(201,162,75,.45); outline: none; }
+.rodape-cta-txt { display: flex; flex-direction: column; text-align: left; font-family: Montserrat, system-ui, sans-serif; }
+.rodape-cta-txt b { font-size: 15px; text-transform: uppercase; letter-spacing: .06em; }
+.rodape-cta-txt small { font-size: 12px; font-weight: 500; opacity: .75; }
+@media print { .rodape-aulas { display: none; } }
