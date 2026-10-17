@@ -261,3 +261,4 @@ html { font-size: clamp(16px, .25vw + 13.5px, 18px); }
 .rodape-cta:hover > svg { background: rgba(14,13,26,.25); transform: translate(2px, -2px); }
 .rodape-cta { margin-left: auto; margin-right: auto; }
 .btn-aulas { z-index: 30; }
+.rodape-cta { width: min(420px, 92%); } .rodape-cta-txt small { text-wrap: balance; }
